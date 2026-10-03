@@ -47,14 +47,17 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   const storage: "session" | "memory" = gpc || options.storage === "memory" ? "memory" : "session";
 
   const state: SessionState = loadState(storage);
-  if (mode === "minimal") state.features = emptyFeatures();
+  const features = mode === "minimal" ? emptyFeatures() : state.features;
+  const persist = () => {
+    if (mode === "full") saveState(state, storage);
+  };
   const tr = emptyTransient();
   const verdictCbs = new Set<(v: Verdict) => void>();
   const signalCbs = new Set<(s: Signal) => void>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let flushed = false;
 
-  const run = (): Scored => score(state.features, RULESET, { mode, gpc, minActions });
+  const run = (): Scored => score(features, RULESET, { mode, gpc, minActions });
   const key = (s: Scored) => `${s.label}/${s.agentClass ?? ""}`;
   let lastKey = key(run());
 
@@ -65,7 +68,7 @@ export function createDetector(options: DetectorOptions = {}): Detector {
     evidence: s.evidence,
     cohort: s.cohort,
     mode,
-    features: clone(state.features),
+    features: clone(features),
     featuresVersion: FEATURES_VERSION,
     rulesetVersion: RULESET.version,
     sessionId: state.sessionId,
@@ -76,13 +79,13 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   const emit = (s: Scored, reason: "flush" | "label-change") => {
     state.seq++;
     const v = build(s, reason);
-    saveState(state, storage);
+    persist();
     for (const cb of verdictCbs) cb(v);
   };
 
   const flush = () => {
     if (flushed) {
-      saveState(state, storage);
+      persist();
       return;
     }
     flushed = true;
@@ -102,7 +105,7 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   const detachInput =
     mode === "minimal"
       ? () => {}
-      : attach(window, state.features, tr, options.ignore ?? [], () => {
+      : attach(window, features, tr, options.ignore ?? [], () => {
           if (timer === undefined) timer = setTimeout(rescore, debounceMs);
         });
 

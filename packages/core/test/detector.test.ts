@@ -99,6 +99,29 @@ describe("createDetector in a browser-like environment", () => {
     d.destroy({ clear: true });
   });
 
+  it("leaves the stored full-mode session untouched in minimal mode", () => {
+    const full = createDetector();
+    for (let i = 0; i < 3; i++)
+      window.dispatchEvent(trusted(new KeyboardEvent("keydown", { key: "a" })));
+    window.dispatchEvent(new Event("pagehide"));
+    full.destroy();
+    const stored = sessionStorage.getItem("al:v1");
+    expect(stored).not.toBeNull();
+
+    const minimal = createDetector({ minimal: true });
+    const seen: Verdict[] = [];
+    minimal.on("verdict", (v) => seen.push(v));
+    window.dispatchEvent(new Event("pagehide"));
+    window.dispatchEvent(new Event("pagehide"));
+    minimal.destroy();
+    expect(seen[0]?.features).toEqual(emptyFeatures());
+    expect(sessionStorage.getItem("al:v1")).toBe(stored);
+
+    const next = createDetector();
+    expect(next.snapshot().features.counts.keys).toBe(3);
+    next.destroy({ clear: true });
+  });
+
   it("uses evidence rule gpc when Global Privacy Control forces minimal mode", () => {
     Object.defineProperty(navigator, "globalPrivacyControl", { value: true, configurable: true });
     try {
