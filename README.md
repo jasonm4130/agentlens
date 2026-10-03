@@ -4,7 +4,7 @@ A front-end-only library that estimates whether a browsing session is driven by 
 
 **Status: M0 scaffold.** The `createDetector` skeleton, the #1 (pointer path), #2 (click dwell), #6 (keystroke timing) and #10 (scroll) extractors, session state, and a stub scorer that emits `features` are in. The scorer has no rules yet, so labels are `insufficient-data` or `abstain`. See [docs/plan/03-architecture.md](docs/plan/03-architecture.md) section 9 for the milestones.
 
-**Minimal mode.** When the browser sends Global Privacy Control (unless `respectGPC: false`) or you pass `minimal: true`, the detector attaches no input listeners, only the flush triggers (`visibilitychange` to hidden and `pagehide`). Each page still emits one `flush` verdict with label `abstain`, evidence rule `gpc` (or `minimal` when forced), and empty `features`. It leaves the tab's stored features from earlier full-mode pages untouched and only advances `seq`, so `seq` stays monotonic per session. GPC also forces memory-only storage.
+**Minimal mode.** When the browser sends Global Privacy Control (unless `respectGPC: false`) or you pass `minimal: true`, the detector attaches no input listeners, only the flush triggers (`visibilitychange` to hidden and `pagehide`). Each page still emits one `flush` verdict with label `abstain`, evidence rule `gpc` (or `minimal` when forced), and empty `features`. It leaves the tab's stored features from earlier full-mode pages untouched and only advances `seq` and `pageCount`, so `seq` stays monotonic per session. GPC also forces memory-only storage.
 
 **A verdict computed in the visitor's browser is readable and forgeable.** It is for understanding your own traffic in aggregate, never for enforcement.
 

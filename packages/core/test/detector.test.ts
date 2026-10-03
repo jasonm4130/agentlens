@@ -123,6 +123,7 @@ describe("createDetector in a browser-like environment", () => {
     expect(afterB.features).toEqual(stored.features);
     expect(afterB.sessionId).toBe(stored.sessionId);
     expect(afterB.seq).toBe(stored.seq + 1);
+    expect(afterB.pageCount).toBe(stored.pageCount + 1);
 
     const c = createDetector();
     c.on("verdict", (v) => seqs.push(v.seq));
