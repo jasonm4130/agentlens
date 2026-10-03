@@ -1,4 +1,4 @@
-import { attach } from "./collector";
+import { attach, attachFlush } from "./collector";
 import { emptyTransient } from "./extractors/transient";
 import { FEATURES_VERSION, emptyFeatures } from "./features";
 import { RULESET, score, type Scored } from "./scorer";
@@ -47,13 +47,14 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   const storage: "session" | "memory" = gpc || options.storage === "memory" ? "memory" : "session";
 
   const state: SessionState = loadState(storage);
+  if (mode === "minimal") state.features = emptyFeatures();
   const tr = emptyTransient();
   const verdictCbs = new Set<(v: Verdict) => void>();
   const signalCbs = new Set<(s: Signal) => void>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let flushed = false;
 
-  const run = (): Scored => score(state.features, RULESET, { mode, minActions });
+  const run = (): Scored => score(state.features, RULESET, { mode, gpc, minActions });
   const key = (s: Scored) => `${s.label}/${s.agentClass ?? ""}`;
   let lastKey = key(run());
 
@@ -80,7 +81,10 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   };
 
   const flush = () => {
-    if (flushed) return;
+    if (flushed) {
+      saveState(state, storage);
+      return;
+    }
     flushed = true;
     emit(run(), "flush");
   };
@@ -94,15 +98,12 @@ export function createDetector(options: DetectorOptions = {}): Detector {
     }
   };
 
-  const detach =
+  const detachFlush = attachFlush(window, flush);
+  const detachInput =
     mode === "minimal"
       ? () => {}
-      : attach(window, state.features, tr, options.ignore ?? [], {
-          onAction: () => {
-            if (timer === undefined) timer = setTimeout(rescore, debounceMs);
-          },
-          onHidden: flush,
-          onPageHide: flush,
+      : attach(window, state.features, tr, options.ignore ?? [], () => {
+          if (timer === undefined) timer = setTimeout(rescore, debounceMs);
         });
 
   const detector: Detector = {
@@ -113,7 +114,8 @@ export function createDetector(options: DetectorOptions = {}): Detector {
     },
     snapshot: () => build(run(), "snapshot"),
     destroy(opts) {
-      detach();
+      detachFlush();
+      detachInput();
       if (timer !== undefined) clearTimeout(timer);
       verdictCbs.clear();
       signalCbs.clear();

@@ -3,7 +3,7 @@ import { foldKeyboard, classifyKey } from "../src/extractors/keyboard";
 import { foldPointer } from "../src/extractors/pointer";
 import { foldScroll } from "../src/extractors/scroll";
 import { emptyTransient } from "../src/extractors/transient";
-import { cv, emptyFeatures, histMode } from "../src/features";
+import { addMoment, COUNT_MAX, cv, emptyFeatures, histMode } from "../src/features";
 import type { Ev } from "../src/types";
 
 const ev = (e: Partial<Ev> & Pick<Ev, "type" | "timeStamp">): Ev => ({ isTrusted: true, ...e });
@@ -193,11 +193,57 @@ describe("#10 scroll", () => {
     expect(f.counts.noInputScrolls).toBe(1);
   });
 
+  it("does not count scrolls while a mouse button is held or after a middle-button autoscroll press", () => {
+    const f = emptyFeatures();
+    const tr = emptyTransient();
+    foldPointer(
+      f,
+      tr,
+      ev({ type: "pointerdown", timeStamp: 1000, pointerType: "mouse", button: 0 }),
+    );
+    for (const t of [2000, 4000]) foldScroll(f, tr, ev({ type: "scroll", timeStamp: t }));
+    foldPointer(f, tr, ev({ type: "pointerup", timeStamp: 4100, pointerType: "mouse", button: 0 }));
+    expect(f.counts.noInputScrolls).toBe(0);
+
+    foldPointer(
+      f,
+      tr,
+      ev({ type: "pointerdown", timeStamp: 5000, pointerType: "mouse", button: 1 }),
+    );
+    foldPointer(f, tr, ev({ type: "pointerup", timeStamp: 5100, pointerType: "mouse", button: 1 }));
+    foldPointer(
+      f,
+      tr,
+      ev({ type: "pointermove", timeStamp: 5200, pointerType: "mouse", buttons: 0 }),
+    );
+    foldScroll(f, tr, ev({ type: "scroll", timeStamp: 7000 }));
+    expect(f.counts.noInputScrolls).toBe(0);
+
+    foldPointer(
+      f,
+      tr,
+      ev({ type: "pointerdown", timeStamp: 8000, pointerType: "mouse", button: 0 }),
+    );
+    foldPointer(f, tr, ev({ type: "pointerup", timeStamp: 8100, pointerType: "mouse", button: 0 }));
+    foldScroll(f, tr, ev({ type: "scroll", timeStamp: 10000 }));
+    expect(f.counts.noInputScrolls).toBe(1);
+  });
+
   it("abstains on scrolls for touch sessions", () => {
     const f = emptyFeatures();
     const tr = emptyTransient();
     foldPointer(f, tr, ev({ type: "pointerdown", timeStamp: 1, pointerType: "touch" }));
     foldScroll(f, tr, ev({ type: "scroll", timeStamp: 5000 }));
     expect(f.counts.noInputScrolls).toBe(0);
+  });
+});
+
+describe("moments", () => {
+  it("keeps n, sum and sumSq consistent once n saturates", () => {
+    let m = null as ReturnType<typeof addMoment> | null;
+    for (let i = 0; i < COUNT_MAX + 1000; i++) m = addMoment(m, i % 2 ? 100 : 200);
+    expect(m?.n).toBe(COUNT_MAX);
+    expect((m?.sum ?? 0) / (m?.n ?? 1)).toBeCloseTo(150, 0);
+    expect(cv(m)).toBeCloseTo(1 / 3, 2);
   });
 });

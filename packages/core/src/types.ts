@@ -109,6 +109,7 @@ export interface Ev {
   clientX?: number;
   clientY?: number;
   button?: number;
+  buttons?: number;
   deltaY?: number;
   deltaMode?: number;
   key?: string;

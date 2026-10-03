@@ -19,7 +19,8 @@ export function normalisedDelta(e: Ev, pageHeight: number): number {
 
 /**
  * #10. Folds wheel ticks (delta bucket, inter-tick dt, repeated identical deltas) and
- * counts scroll bursts with no wheel, touch, key or pointer input in the previous 500 ms.
+ * counts scroll bursts with no wheel, touch, key or pointer input in the previous 500 ms
+ * and no mouse button held (scrollbar drag, middle-button autoscroll).
  * Returns true when a new wheel gesture or no-input scroll burst began.
  */
 export function foldScroll(f: Features, tr: Transient, e: Ev): boolean {
@@ -52,7 +53,7 @@ export function foldScroll(f: Features, tr: Transient, e: Ev): boolean {
   if (e.type === "scroll") {
     // Touch momentum scrolling outlives the last touch event, so touch cohorts abstain.
     if (c.touchEvents > 0) return false;
-    if (t - tr.lastInputAt <= NO_INPUT_MS) return false;
+    if (tr.heldButton !== null || t - tr.lastInputAt <= NO_INPUT_MS) return false;
     if (t < tr.suppressScrollUntil || inFindWindow(tr, t)) return false;
     const newBurst = t - tr.lastNoInputScrollAt > SCROLL_BURST_GAP_MS;
     tr.lastNoInputScrollAt = t;

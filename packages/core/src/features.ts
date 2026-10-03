@@ -63,7 +63,8 @@ export function addToHist(hist: number[] | null, value: number, edges: number[])
 export function addMoment(m: Moments | null, value: number): Moments {
   const x = Math.round(Math.min(Math.max(value, 0), MOMENT_SAMPLE_MAX));
   const r = m ?? { n: 0, sum: 0, sumSq: 0 };
-  r.n = Math.min(r.n + 1, COUNT_MAX);
+  if (r.n >= COUNT_MAX) return r;
+  r.n++;
   r.sum += x;
   r.sumSq += x * x;
   return r;

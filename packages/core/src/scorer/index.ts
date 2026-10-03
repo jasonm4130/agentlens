@@ -5,6 +5,8 @@ export type Ruleset = typeof RULESET;
 
 export interface ScoreContext {
   mode: "full" | "minimal";
+  /** Minimal mode came from Global Privacy Control rather than `minimal: true`. */
+  gpc: boolean;
   minActions: number;
 }
 
@@ -47,7 +49,7 @@ export function score(features: Features, _ruleset: Ruleset, ctx: ScoreContext):
       ...base,
       label: "abstain",
       confidence: "low",
-      evidence: [{ rule: "gpc", detail: "minimal mode" }],
+      evidence: [{ rule: ctx.gpc ? "gpc" : "minimal", detail: "minimal mode" }],
     };
   }
   if (actions < ctx.minActions) {

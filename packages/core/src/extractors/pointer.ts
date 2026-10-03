@@ -31,6 +31,7 @@ export function foldPointer(f: Features, tr: Transient, e: Ev): boolean {
   bump(c, "mouseEvents");
 
   if (e.type === "pointermove") {
+    if (e.buttons === 0 && tr.heldButton !== 1) tr.heldButton = null;
     bump(c, "mouseMoves");
     tr.moves.push(t);
     if (tr.moves.length > 8) tr.moves.shift();
@@ -39,6 +40,7 @@ export function foldPointer(f: Features, tr: Transient, e: Ev): boolean {
 
   if (e.type === "pointerdown") {
     tr.lastInputAt = t;
+    tr.heldButton = e.button ?? 0;
     if (e.button !== 0) return false;
     let recent = 0;
     for (const m of tr.moves) if (m >= t - MOVE_WINDOW_MS) recent++;
@@ -53,6 +55,7 @@ export function foldPointer(f: Features, tr: Transient, e: Ev): boolean {
     return false;
   }
 
+  if (e.type === "pointerup" && tr.heldButton !== 1) tr.heldButton = null;
   if (e.type === "pointerup" && tr.down) {
     const d = tr.down;
     tr.down = null;

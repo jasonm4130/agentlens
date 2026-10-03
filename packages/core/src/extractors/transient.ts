@@ -8,6 +8,8 @@ export interface Transient {
   anchorX: number | null;
   anchorY: number | null;
   down: { t: number; singleMove: boolean; displaced: boolean } | null;
+  /** Mouse button held since its pointerdown; middle stays set until the next press (autoscroll). */
+  heldButton: number | null;
   // keyboard
   lastCharAt: number | null;
   keyDown: Map<string, { t: number; isChar: boolean }>;
@@ -27,6 +29,7 @@ export function emptyTransient(): Transient {
     anchorX: null,
     anchorY: null,
     down: null,
+    heldButton: null,
     lastCharAt: null,
     keyDown: new Map(),
     findAt: Number.NEGATIVE_INFINITY,
