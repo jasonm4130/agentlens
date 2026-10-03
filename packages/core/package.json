@@ -1,0 +1,22 @@
+{
+  "name": "@agentlens/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/agentlens.mjs",
+  "types": "./dist/agentlens.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/agentlens.d.ts",
+      "default": "./dist/agentlens.mjs"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsdown",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "tsdown": "^0.23.0"
+  }
+}

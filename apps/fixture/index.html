@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture: search</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Search</h1>
+      <form role="search" onsubmit="return false;">
+        <label for="q">Search the catalogue</label>
+        <input id="q" name="q" type="search" autocomplete="off" />
+        <button type="submit">Search</button>
+      </form>
+      <h2>Results</h2>
+      <ul>
+        <li><a data-next href="/page2.html">Result one: a long article</a></li>
+        <li><a data-next href="/page2.html">Result two: another long article</a></li>
+      </ul>
+    </main>
+    <script src="/boot.js" type="module"></script>
+  </body>
+</html>

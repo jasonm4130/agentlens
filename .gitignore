@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env
+!.env.op
+harness/recorder/out/
+harness/runners-ts/out/
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
