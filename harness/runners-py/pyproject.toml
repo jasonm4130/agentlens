@@ -1,0 +1,25 @@
+[project]
+name = "agentlens-runners"
+version = "0.0.0"
+description = "Credentialed harness runners for agentlens (computer-use-demo driver). Not published."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+agentlens-runner = "agentlens_runners.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentlens_runners"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

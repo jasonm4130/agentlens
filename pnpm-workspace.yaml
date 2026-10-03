@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+  - harness/recorder
+  - harness/runners-ts
+
+allowBuilds:
+  esbuild: true

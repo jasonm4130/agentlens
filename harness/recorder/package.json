@@ -1,0 +1,19 @@
+{
+  "name": "@agentlens/recorder",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "agentlens-recorder": "./src/cli.ts"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
+  }
+}

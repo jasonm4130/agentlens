@@ -1,0 +1,15 @@
+{
+  "name": "@agentlens/runners-ts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "playwright": "tsx src/playwright.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@agentlens/recorder": "workspace:*",
+    "playwright": "^1.63.0",
+    "tsx": "^4.20.0"
+  }
+}

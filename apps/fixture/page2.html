@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture: article and form</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>A long article</h1>
+      <p>Scroll to the end of this page, then fill in the form.</p>
+      <div class="filler" aria-hidden="true"></div>
+      <form id="details" onsubmit="return false;">
+        <label for="name">Full name</label>
+        <input id="name" name="name" autocomplete="name" />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" />
+        <label for="topic">Topic</label>
+        <input id="topic" name="topic" autocomplete="off" />
+        <label for="company">Company</label>
+        <input id="company" name="company" autocomplete="off" />
+        <label for="notes">Notes</label>
+        <input id="notes" name="notes" autocomplete="off" />
+        <button type="submit">Save details</button>
+      </form>
+      <p><a data-next href="/page3.html">Continue</a></p>
+    </main>
+    <script src="/boot.js" type="module"></script>
+  </body>
+</html>
