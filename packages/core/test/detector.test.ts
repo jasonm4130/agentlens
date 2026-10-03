@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDetector } from "../src";
 import { emptyFeatures } from "../src/features";
-import { clearState } from "../src/state";
+import { clearState, type SessionState } from "../src/state";
 import type { Verdict } from "../src/types";
 
 afterEach(() => clearState());
@@ -99,27 +99,38 @@ describe("createDetector in a browser-like environment", () => {
     d.destroy({ clear: true });
   });
 
-  it("leaves the stored full-mode session untouched in minimal mode", () => {
-    const full = createDetector();
+  it("keeps stored features and advances seq across a minimal-mode page", () => {
+    const seqs: number[] = [];
+    const a = createDetector();
+    a.on("verdict", (v) => seqs.push(v.seq));
     for (let i = 0; i < 3; i++)
       window.dispatchEvent(trusted(new KeyboardEvent("keydown", { key: "a" })));
     window.dispatchEvent(new Event("pagehide"));
-    full.destroy();
-    const stored = sessionStorage.getItem("al:v1");
-    expect(stored).not.toBeNull();
+    a.destroy();
+    const stored = JSON.parse(sessionStorage.getItem("al:v1") ?? "null") as SessionState;
 
-    const minimal = createDetector({ minimal: true });
+    const b = createDetector({ minimal: true });
     const seen: Verdict[] = [];
-    minimal.on("verdict", (v) => seen.push(v));
+    b.on("verdict", (v) => {
+      seen.push(v);
+      seqs.push(v.seq);
+    });
     window.dispatchEvent(new Event("pagehide"));
     window.dispatchEvent(new Event("pagehide"));
-    minimal.destroy();
+    b.destroy();
     expect(seen[0]?.features).toEqual(emptyFeatures());
-    expect(sessionStorage.getItem("al:v1")).toBe(stored);
+    const afterB = JSON.parse(sessionStorage.getItem("al:v1") ?? "null") as SessionState;
+    expect(afterB.features).toEqual(stored.features);
+    expect(afterB.sessionId).toBe(stored.sessionId);
+    expect(afterB.seq).toBe(stored.seq + 1);
 
-    const next = createDetector();
-    expect(next.snapshot().features.counts.keys).toBe(3);
-    next.destroy({ clear: true });
+    const c = createDetector();
+    c.on("verdict", (v) => seqs.push(v.seq));
+    expect(c.snapshot().features.counts.keys).toBe(3);
+    window.dispatchEvent(new Event("pagehide"));
+    c.destroy({ clear: true });
+    expect(seqs).toHaveLength(3);
+    expect(seqs[0]! < seqs[1]! && seqs[1]! < seqs[2]!).toBe(true);
   });
 
   it("uses evidence rule gpc when Global Privacy Control forces minimal mode", () => {

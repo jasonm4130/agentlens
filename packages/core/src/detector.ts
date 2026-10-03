@@ -48,9 +48,6 @@ export function createDetector(options: DetectorOptions = {}): Detector {
 
   const state: SessionState = loadState(storage);
   const features = mode === "minimal" ? emptyFeatures() : state.features;
-  const persist = () => {
-    if (mode === "full") saveState(state, storage);
-  };
   const tr = emptyTransient();
   const verdictCbs = new Set<(v: Verdict) => void>();
   const signalCbs = new Set<(s: Signal) => void>();
@@ -79,13 +76,13 @@ export function createDetector(options: DetectorOptions = {}): Detector {
   const emit = (s: Scored, reason: "flush" | "label-change") => {
     state.seq++;
     const v = build(s, reason);
-    persist();
+    saveState(state, storage);
     for (const cb of verdictCbs) cb(v);
   };
 
   const flush = () => {
     if (flushed) {
-      persist();
+      saveState(state, storage);
       return;
     }
     flushed = true;
