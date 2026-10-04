@@ -13,7 +13,12 @@
     ".": {
       "types": "./dist/agentlens.d.ts",
       "default": "./dist/agentlens.mjs"
-    }
+    },
+    "./scorer": {
+      "types": "./dist/scorer.d.ts",
+      "default": "./dist/scorer.mjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "rm -rf dist && tsdown",

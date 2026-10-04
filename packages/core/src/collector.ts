@@ -1,9 +1,8 @@
-import { foldKeyboard } from "./extractors/keyboard";
-import { foldPointer } from "./extractors/pointer";
-import { foldScroll, suppressScrolls } from "./extractors/scroll";
-import type { Transient } from "./extractors/transient";
-import type { Ev, Features } from "./types";
+import { validSelectors, type Env } from "./env";
+import { ACTION, emptyTransient, type Ev, type Extractor, type Sink } from "./extractors/extractor";
+import type { Features } from "./features";
 
+/** Sensitive fields and opted-out subtrees are never observed. */
 const IGNORE_SELECTORS = [
   'input[type="password"]',
   'input[autocomplete^="cc-"]',
@@ -11,73 +10,65 @@ const IGNORE_SELECTORS = [
   "[data-al-ignore]",
 ];
 
-const opts: AddEventListenerOptions = { passive: true, capture: true };
+const LISTEN: AddEventListenerOptions = { passive: true, capture: true };
 
-function listen(win: Window, listeners: [string, EventListener][]): () => void {
-  for (const [type, fn] of listeners) win.addEventListener(type, fn, opts);
+/** Subscribes `fns` on the env target; returns the detach function. */
+export function listen(env: Env, fns: [string, (e: Event) => void][]): () => void {
+  for (const [type, fn] of fns) env.target.addEventListener(type, fn, LISTEN);
   return () => {
-    for (const [type, fn] of listeners) win.removeEventListener(type, fn, opts);
+    for (const [type, fn] of fns) env.target.removeEventListener(type, fn, LISTEN);
   };
 }
 
-/** Attaches the flush triggers only (tab hidden, page hide). Returns the detach function. */
-export function attachFlush(win: Window, flush: () => void): () => void {
-  const visibility = () => {
-    if (win.document.visibilityState === "hidden") flush();
-  };
-  return listen(win, [
-    ["visibilitychange", visibility],
-    ["pagehide", flush],
-  ]);
+export interface CollectorHooks {
+  /** A countable action happened (debounced re-score). */
+  onAction(): void;
+  /** A hard tell landed (immediate re-score). */
+  onTell(): void;
 }
 
 /**
- * Attaches passive capture listeners for behavioural input on `window`. Events fold into
- * `features` and the raw event is dropped. `onAction` fires on each countable action.
- * Invalid `ignore` selectors are dropped so they cannot disable the built-in exclusions.
- * Returns the detach function.
+ * Routes each DOM event to the extractors that asked for it, with one passive capture
+ * listener per event type on the window. Invalid `ignore` selectors are dropped so they
+ * cannot disable the built-in exclusions. Returns the detach function.
  */
-export function attach(
-  win: Window,
+export function attachCollector(
+  env: Env,
   features: Features,
-  tr: Transient,
-  ignore: string[],
-  onAction: () => void,
+  extractors: readonly Extractor[],
+  ignore: readonly string[],
+  hooks: CollectorHooks,
 ): () => void {
-  const valid = (s: string): boolean => {
-    try {
-      win.document.querySelector(s);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  const selector = [...IGNORE_SELECTORS, ...ignore.filter(valid)].join(",");
-  const isIgnored = (e: Event): boolean => {
-    const t = e.target as Element | null;
+  const tr = emptyTransient();
+  tr.pageHeight = env.geometry()?.innerH || tr.pageHeight;
+  const selector = [...IGNORE_SELECTORS, ...validSelectors(env, ignore)].join(",");
+  const isIgnored = (e: Ev): boolean => {
+    const t = e.target;
     return !!t && typeof t.closest === "function" && t.closest(selector) !== null;
   };
 
-  const fold =
-    (fn: (f: Features, t: Transient, e: Ev) => boolean, checkIgnore: boolean) => (e: Event) => {
-      if (checkIgnore && isIgnored(e)) return;
-      tr.pageHeight = win.innerHeight || tr.pageHeight;
-      if (fn(features, tr, e as unknown as Ev)) onAction();
-    };
+  const byType = new Map<string, Extractor[]>();
+  for (const x of extractors)
+    for (const type of x.events) byType.set(type, [...(byType.get(type) ?? []), x]);
 
-  const pointer = fold(foldPointer, true);
-  const key = fold(foldKeyboard, true);
-  const scroll = fold(foldScroll, false);
-  const suppress = (e: Event) => suppressScrolls(tr, e.timeStamp);
-  return listen(win, [
-    ["pointermove", pointer],
-    ["pointerdown", pointer],
-    ["pointerup", pointer],
-    ["keydown", key],
-    ["keyup", key],
-    ["wheel", scroll],
-    ["scroll", scroll],
-    ["hashchange", suppress],
-    ["focusin", suppress],
-  ]);
+  const dispatch = (e: Ev): void => {
+    let ignored: boolean | undefined;
+    for (const x of byType.get(e.type) ?? []) {
+      if (x.skipIgnored && (ignored ??= isIgnored(e))) continue;
+      x.fold(features, tr, e, sink);
+    }
+  };
+  const sink: Sink = {
+    action(t) {
+      dispatch({ type: ACTION, timeStamp: t, isTrusted: true });
+      hooks.onAction();
+    },
+    tell: () => hooks.onTell(),
+  };
+
+  const domTypes = [...byType.keys()].filter((t) => t !== ACTION);
+  return listen(
+    env,
+    domTypes.map((type) => [type, (e: Event) => dispatch(e as unknown as Ev)]),
+  );
 }
