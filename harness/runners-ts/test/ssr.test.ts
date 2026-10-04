@@ -2,6 +2,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type * as Core from "../../../packages/core/src";
 
 const built = fileURLToPath(new URL("../../../packages/core/dist/agentlens.mjs", import.meta.url));
 
@@ -12,7 +13,7 @@ describe("SSR import of the built agentlens.mjs", () => {
 
   it("imports with no window and abstains", async () => {
     expect(typeof (globalThis as { window?: unknown }).window).toBe("undefined");
-    const { createDetector } = (await import(built)) as typeof import("../../../packages/core/src");
+    const { createDetector } = (await import(built)) as typeof Core;
     const d = createDetector();
     const v = d.snapshot();
     expect(v.label).toBe("abstain");

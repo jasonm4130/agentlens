@@ -18,11 +18,14 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      # Local turbo cache only; no remote cache.
+      - uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-turbo-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm test
+      - run: pnpm exec turbo run lint:all typecheck build test size check-exports
       - uses: actions/upload-artifact@v7
         with:
           name: dist

@@ -1,8 +1,8 @@
-import { defineConfig } from "tsdown";
+import { defineConfig, type UserConfig } from "tsdown";
 
 const entry = { agentlens: "src/index.ts" };
 
-export default defineConfig([
+const config: UserConfig[] = defineConfig([
   {
     entry,
     format: "esm",
@@ -24,3 +24,5 @@ export default defineConfig([
     minify: true,
   },
 ]);
+
+export default config;

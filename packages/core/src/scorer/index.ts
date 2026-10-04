@@ -43,7 +43,7 @@ export function actionsOf(f: Features): number {
 export function score(features: Features, _ruleset: Ruleset, ctx: ScoreContext): Scored {
   const cohort = cohortOf(features);
   const actions = actionsOf(features);
-  const base = { cohort, actions, agentClass: undefined as AgentClass | undefined };
+  const base = { cohort, actions };
   if (ctx.mode === "minimal") {
     return {
       ...base,

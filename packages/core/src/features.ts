@@ -3,11 +3,11 @@ import type { Counts, Features, Moments } from "./types";
 export const FEATURES_VERSION = 1;
 
 /** Upper bin edges in ms. A value goes in the first bin whose edge exceeds it, else the last. */
-export const DWELL_EDGES = [5, 10, 20, 40, 80, 160, 320, 640, 1280];
+export const DWELL_EDGES: number[] = [5, 10, 20, 40, 80, 160, 320, 640, 1280];
 /** Bin 2 is 10-15 ms, which isolates the 12 ms xdotool typing gap. */
-export const KEY_GAP_EDGES = [5, 10, 15, 20, 40, 80, 160, 320, 640, 1280];
-export const WHEEL_DT_EDGES = [10, 20, 40, 80, 160, 320, 640, 1280];
-export const WHEEL_DELTA_EDGES = [1, 4, 16, 32, 64, 100, 200, 400];
+export const KEY_GAP_EDGES: number[] = [5, 10, 15, 20, 40, 80, 160, 320, 640, 1280];
+export const WHEEL_DT_EDGES: number[] = [10, 20, 40, 80, 160, 320, 640, 1280];
+export const WHEEL_DELTA_EDGES: number[] = [1, 4, 16, 32, 64, 100, 200, 400];
 
 export const COUNT_MAX = 65535;
 const MOMENT_SAMPLE_MAX = 10000;

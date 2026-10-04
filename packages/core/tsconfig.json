@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Declarations are emitted by tsdown through oxc, which needs this; it also keeps the
+    // public types explicit. TypeScript 7 has no JS API, so the oxc path is the one that works.
+    "declaration": true,
+    "isolatedDeclarations": true
+  },
   "include": ["src", "test", "tsdown.config.ts"]
 }

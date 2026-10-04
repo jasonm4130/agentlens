@@ -26,7 +26,9 @@ if (variant === "iife") {
   s.onload = () => start(window.agentlens.createDetector);
   document.head.append(s);
 } else {
-  import("/lib/agentlens.mjs").then((m) => start(m.createDetector));
+  import("/lib/agentlens.mjs")
+    .then((m) => start(m.createDetector))
+    .catch((err) => console.error("agentlens failed to load", err));
 }
 
 // Carry the run id and variant across the three pages.

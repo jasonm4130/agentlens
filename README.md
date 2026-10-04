@@ -19,11 +19,16 @@ Distribution is GitHub only: built files (`agentlens.mjs`, `agentlens.iife.js`, 
 
 ## Develop
 
+Tasks run through Turborepo with a local cache; see [docs/decisions/0001-toolchain.md](docs/decisions/0001-toolchain.md) for why each tool was chosen.
+
 ```sh
 pnpm install
+pnpm check        # everything CI runs: lint, typecheck, build, test, size, check-exports
 pnpm build        # packages/core/dist: agentlens.mjs, agentlens.iife.js, agentlens.d.ts
-pnpm test         # needs a build first (the SSR test imports the built bundle)
-pnpm lint
+pnpm test         # builds first where a test needs the bundle
+pnpm lint         # oxlint (type-aware) and oxfmt --check; `pnpm format` rewrites
+pnpm size         # size-limit on the built files, gzipped
+pnpm changeset    # describe a consumer-visible change to @agentlens/core
 pnpm --filter @agentlens/recorder start            # fixture page + JSONL recorder on :8787
 pnpm --filter @agentlens/runners-ts exec playwright install chromium
 pnpm --filter @agentlens/runners-ts playwright     # Playwright against the fixture
