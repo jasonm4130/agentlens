@@ -14,7 +14,10 @@ function record(kind, payload) {
 }
 
 function start(createDetector) {
+  // Init cost, read by the perf trace runner.
+  const t0 = performance.now();
   const d = createDetector();
+  window.__alInitMs = performance.now() - t0;
   d.on("verdict", (v) => record("verdict", v));
   d.on("signal", (s) => record("signal", s));
   window.__alSnapshot = () => d.snapshot();

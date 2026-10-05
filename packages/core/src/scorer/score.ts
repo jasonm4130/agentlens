@@ -58,15 +58,30 @@ export function score(
   const actions = actionsOf(features);
   const minActions = options.minActions ?? 3;
   const ctx: RuleContext = { f: features, th: ruleset.thresholds, cohort };
-  const base = { cohort, actions };
-
-  if (ruleset.featuresVersion !== FEATURES_VERSION) {
-    const detail = `ruleset needs features v${ruleset.featuresVersion}, got v${FEATURES_VERSION}`;
-    const evidence = [{ rule: "version", detail }];
-    return { ...base, label: "abstain", confidence: "low", evidence, tells: [] };
-  }
-
   const tells: Tell[] = [];
+  const out = (
+    label: Label,
+    confidence: Confidence,
+    evidence: Evidence[],
+    agentClass?: AgentClass,
+  ): Scored => ({
+    label,
+    ...(agentClass ? { agentClass } : {}),
+    confidence,
+    evidence,
+    cohort,
+    actions,
+    tells,
+  });
+  const only = (rule: string, detail: string): Scored =>
+    out(rule === "min-actions" ? "insufficient-data" : "abstain", "low", [{ rule, detail }]);
+
+  if (ruleset.featuresVersion !== FEATURES_VERSION)
+    return only(
+      "version",
+      `ruleset needs features v${ruleset.featuresVersion}, got v${FEATURES_VERSION}`,
+    );
+
   for (const rule of ruleset.rules) {
     if (rule.tier !== 1) continue;
     const r = rule.check(ctx);
@@ -77,27 +92,16 @@ export function score(
         ...(rule.agentClass ? { agentClass: rule.agentClass } : {}),
       });
   }
-  if (tells.length) {
-    const agentClass = tells.find((t) => t.agentClass)?.agentClass;
-    const evidence = tells.map(({ rule, detail }) => ({ rule, detail }));
-    return {
-      ...base,
-      label: "agent-likely",
-      ...(agentClass ? { agentClass } : {}),
-      confidence: "certain",
-      evidence,
-      tells,
-    };
-  }
+  if (tells.length)
+    return out(
+      "agent-likely",
+      "certain",
+      tells.map(({ rule, detail }) => ({ rule, detail })),
+      tells.find((t) => t.agentClass)?.agentClass,
+    );
 
-  if (options.mode === "minimal") {
-    const evidence = [{ rule: options.gpc ? "gpc" : "minimal", detail: "minimal mode" }];
-    return { ...base, label: "abstain", confidence: "low", evidence, tells };
-  }
-  if (actions < minActions) {
-    const evidence = [{ rule: "min-actions", detail: `${actions}/${minActions} actions` }];
-    return { ...base, label: "insufficient-data", confidence: "low", evidence, tells };
-  }
+  if (options.mode === "minimal") return only(options.gpc ? "gpc" : "minimal", "minimal mode");
+  if (actions < minActions) return only("min-actions", `${actions}/${minActions} actions`);
 
   const evidence: Evidence[] = [];
   const fired = new Set<string>();
@@ -120,17 +124,14 @@ export function score(
     const confidence = qualifying + corroborating >= 3 ? "high" : "medium";
     const classes = ruleset.profiles.filter((p) => p.matches(ctx, fired)).map((p) => p.agentClass);
     // A session matching two profiles stays unattributed.
-    if (classes.length === 1) {
-      const agentClass = classes[0] as AgentClass;
-      return { ...base, label: "agent-likely", agentClass, confidence, evidence, tells };
-    }
-    return { ...base, label: "agent-unattributed", confidence, evidence, tells };
+    return classes.length === 1
+      ? out("agent-likely", confidence, evidence, classes[0])
+      : out("agent-unattributed", confidence, evidence);
   }
   if (gatesOpen === 0) {
     evidence.push({ rule: "gates", detail: "every behavioural gate abstained" });
-    return { ...base, label: "abstain", confidence: "low", evidence, tells };
+    return out("abstain", "low", evidence);
   }
   // "No agent rule reached threshold", never "verified human": at most `medium`.
-  const confidence = evidence.length ? "low" : "medium";
-  return { ...base, label: "human-like", confidence, evidence, tells };
+  return out("human-like", evidence.length ? "low" : "medium", evidence);
 }

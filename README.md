@@ -33,7 +33,7 @@ Distribution is GitHub only: built files (`agentlens.mjs`, `agentlens.iife.js` w
 | `minimal`         | `false`     | Minimal mode without GPC.                                                                                                                                  |
 | `ignore`          | `[]`        | Extra selectors whose subtrees are never observed, on top of `[data-al-ignore]`, password, `cc-*` and one-time-code fields. Invalid selectors are dropped. |
 | `extraMarkers`    | `[]`        | Your own marker selectors, reported as `custom-marker` with no class.                                                                                      |
-| `scoreDebounceMs` | `1000`      | Quiet time after input before re-scoring.                                                                                                                  |
+| `scoreDebounceMs` | `1000`      | Quiet time after input before re-scoring; continuous input still re-scores every 10 s.                                                                     |
 
 **Minimal mode** (GPC or `minimal: true`) attaches no input listeners, only the flush triggers. It runs the one-shot probes and the marker check, so a Tier 1 tell still gives `agent-likely`; otherwise the label is `abstain` with evidence rule `gpc` (or `minimal`), never `human-like`. Its `features` hold probe bits and marker hits only. It leaves the tab's stored behavioural features from earlier pages untouched and only advances `seq` and `pageCount`.
 
@@ -52,9 +52,11 @@ if (check.ok) score(check.features, RULESET, { mode: v.mode });
 
 A re-score that disagrees with the reported label catches a lazily forged verdict, not forged features.
 
-## Size
+## Size and cost
 
-`pnpm size` (size-limit, gzip) on the M1 build: `agentlens.mjs` 9.91 kB, `agentlens.iife.js` 9.95 kB, `scorer.mjs` 4.07 kB, against a 10 kB cap (10.5 kB for the IIFE).
+`pnpm size` (size-limit, gzip) on the M1 build: `agentlens.mjs` 9.96 kB, `agentlens.iife.js` 9.98 kB, `scorer.mjs` 3.93 kB, against caps of 10 kB, 10 kB and 4.5 kB.
+
+`pnpm --filter @agentlens/runners-ts perf` loads the fixture in headless Chromium at 4× CPU throttle, drives a 60 s mouse, keyboard and wheel session three times, and reports init time and main-thread time from a Chrome trace (median of the runs). A no-op control listener on the same events runs ahead of the library, so the report splits the browser's per-event floor (creating each event's JS wrapper, which any listener pays) from the library's own time. The #17 WebGL probe costs several milliseconds, so it runs only once the behavioural rules reach an agent label, since only the class-B profile reads it.
 
 ## Develop
 
@@ -64,13 +66,14 @@ Tasks run through Turborepo with a local cache; see [docs/decisions/0001-toolcha
 pnpm install
 pnpm check        # everything CI runs: lint, typecheck, build, test, size, check-exports
 pnpm build        # packages/core/dist: agentlens.mjs, agentlens.iife.js, scorer.mjs and .d.ts
-pnpm test         # builds first where a test needs the bundle
+pnpm test         # builds first; the headless Chromium test needs the playwright install below
 pnpm lint         # oxlint (type-aware) and oxfmt --check; `pnpm format` rewrites
 pnpm size         # size-limit on the built files, gzipped
 pnpm changeset    # describe a consumer-visible change to @agentlens/core
 pnpm --filter @agentlens/recorder start            # fixture page + JSONL recorder on :8787
 pnpm --filter @agentlens/runners-ts exec playwright install chromium
 pnpm --filter @agentlens/runners-ts playwright     # Playwright against the fixture
+pnpm --filter @agentlens/runners-ts perf           # 60 s trace at 4x CPU throttle; --breakdown, --runs=N
 ```
 
 `harness/runners-py` is the computer-use-demo driver (a uv project). It prints the run plan and refuses to start without `ANTHROPIC_API_KEY`; secrets come from 1Password via `op run --env-file .env.op`.

@@ -46,8 +46,6 @@ export type RuleResult = string | false | null;
 
 export interface Rule {
   id: string;
-  /** Signal number in docs/plan/01-signals.md. */
-  signal: string;
   /** 1: one is enough (`certain`). 2: behavioural, needs two. */
   tier: 1 | 2;
   /** Tier 1 attribution. */
@@ -96,103 +94,92 @@ const trackpadHint = (f: Features): boolean =>
 export const RULES: readonly Rule[] = [
   // Tier 1: hard tells, `certain`.
   {
-    id: "C-marker",
-    signal: "#9",
+    id: "C-marker", // signal #9 in 01-signals
     tier: 1,
     agentClass: "C",
-    check: ({ f }) => tell(f.markers.claude, "Claude in Chrome marker present"),
+    check: ({ f }) => tell(f.markers.claude, "Claude in Chrome marker"),
   },
   {
-    id: "BU-marker",
-    signal: "#9",
+    id: "BU-marker", // signal #9 in 01-signals
     tier: 1,
     agentClass: "A",
-    check: ({ f }) => tell(f.markers.browserUse, "Browser Use or Playwright highlight present"),
+    check: ({ f }) => tell(f.markers.browserUse, "Browser Use/Playwright highlight"),
   },
   {
-    id: "webdriver",
-    signal: "#13",
+    id: "webdriver", // signal #13 in 01-signals
     tier: 1,
     agentClass: "A",
     check: ({ f }) =>
       tell(
         f.probes.webdriver === true || f.probes.webdriverOwn === true,
-        f.probes.webdriver ? "navigator.webdriver is true" : "webdriver own property present",
+        f.probes.webdriver ? "navigator.webdriver is true" : "own webdriver property",
       ),
   },
   {
-    id: "headless-ua",
-    signal: "#14",
+    id: "headless-ua", // signal #14 in 01-signals
     tier: 1,
     agentClass: "A",
     check: ({ f }) => tell(f.probes.headlessUA, "HeadlessChrome user agent"),
   },
   {
-    id: "fw-globals",
-    signal: "#21",
+    id: "fw-globals", // signal #21 in 01-signals
     tier: 1,
     agentClass: "A",
-    check: ({ f }) => tell(f.probes.fwGlobals, "automation framework global present"),
+    check: ({ f }) => tell(f.probes.fwGlobals, "automation framework global"),
   },
   {
-    id: "BU-trio",
-    signal: "#8",
+    id: "BU-trio", // signal #8 in 01-signals
     tier: 1,
     agentClass: "A",
     check: ({ f }) =>
       tell(f.counts.buTrio > 0, `${f.counts.buTrio} synthetic input/change/blur trio`),
   },
   {
-    id: "custom-marker",
-    signal: "#9",
+    id: "custom-marker", // signal #9 in 01-signals
     tier: 1,
-    check: ({ f }) => tell(f.markers.custom, "consumer marker present"),
+    check: ({ f }) => tell(f.markers.custom, "consumer marker"),
   },
 
   // Tier 2: behavioural; each abstains unless its gate passes.
   {
-    id: "R1",
-    signal: "#1",
+    id: "R1", // signal #1 in 01-signals
     tier: 2,
     check: (ctx) => {
       const c = ctx.f.counts;
       return gated(mouseClicksGate(ctx) && c.anchoredClicks >= ctx.th.minAnchoredClicks, () =>
         share(c.displacedSingleMoveClicks, c.anchoredClicks) >= ctx.th.pathShare
-          ? `${ratio(c.displacedSingleMoveClicks, c.anchoredClicks)} clicks single-move and displaced`
+          ? `${ratio(c.displacedSingleMoveClicks, c.anchoredClicks)} single-move displaced clicks`
           : false,
       );
     },
   },
   {
-    id: "R2",
-    signal: "#2",
+    id: "R2", // signal #2 in 01-signals
     tier: 2,
     check: (ctx) => {
       const c = ctx.f.counts;
       return gated(mouseClicksGate(ctx) && !trackpadHint(ctx.f), () =>
         share(c.singleMoveShortDwellClicks, c.clicks) >= ctx.th.dwellShare
-          ? `${ratio(c.singleMoveShortDwellClicks, c.clicks)} clicks single-move with dwell under 20 ms`
+          ? `${ratio(c.singleMoveShortDwellClicks, c.clicks)} single-move clicks under 20 ms dwell`
           : false,
       );
     },
   },
   {
-    id: "R3",
-    signal: "#4",
+    id: "R3", // signal #4 in 01-signals
     tier: 2,
     check: ({ f, th, cohort }) => {
       const c = f.counts;
       return gated(cohort === "mouse" && c.idleGaps >= th.minIdleGaps, () => {
         const rate = share(c.idleMoves, c.idleSecs);
         return rate < th.frozenMovesPerSec && c.hovered <= c.hoveredClicked
-          ? `${fixed(rate)} moves per idle second over ${c.idleGaps} gaps, no stray hovers`
+          ? `${fixed(rate)} moves/idle s over ${c.idleGaps} gaps, no stray hovers`
           : false;
       });
     },
   },
   {
-    id: "R4",
-    signal: "#6",
+    id: "R4", // signal #6 in 01-signals
     tier: 2,
     check: (ctx) => {
       const { f, th } = ctx;
@@ -212,8 +199,7 @@ export const RULES: readonly Rule[] = [
     },
   },
   {
-    id: "R5",
-    signal: "#5",
+    id: "R5", // signal #5 in 01-signals
     tier: 2,
     check: ({ f, th }) =>
       gated(f.counts.inputs > 0, () =>
@@ -223,8 +209,7 @@ export const RULES: readonly Rule[] = [
       ),
   },
   {
-    id: "R6",
-    signal: "#10",
+    id: "R6", // signal #10 in 01-signals
     tier: 2,
     check: (ctx) => {
       const c = ctx.f.counts;
@@ -239,8 +224,7 @@ export const RULES: readonly Rule[] = [
     },
   },
   {
-    id: "R7",
-    signal: "#11",
+    id: "R7", // signal #11 in 01-signals
     tier: 2,
     check: ({ f, th, cohort }) => {
       const c = f.counts;
@@ -250,14 +234,13 @@ export const RULES: readonly Rule[] = [
         c.centreSizes >= th.minCentreSizes;
       return gated(open, () =>
         c.centreHits === c.centreSampled
-          ? `${ratio(c.centreHits, c.centreSampled)} clicks within 0.05 of the centre`
+          ? `${ratio(c.centreHits, c.centreSampled)} clicks within 5% of centre`
           : false,
       );
     },
   },
   {
-    id: "R9",
-    signal: "#8",
+    id: "R9", // signal #8 in 01-signals
     tier: 2,
     check: ({ f, th }) =>
       tell(
@@ -266,8 +249,7 @@ export const RULES: readonly Rule[] = [
       ),
   },
   {
-    id: "R10",
-    signal: "modality",
+    id: "R10", // signal modality in 01-signals
     tier: 2,
     check: ({ f }) => {
       const c = f.counts;
@@ -285,18 +267,16 @@ export const RULES: readonly Rule[] = [
     },
   },
   {
-    id: "hidden-input",
-    signal: "#7",
+    id: "hidden-input", // signal #7 in 01-signals
     tier: 2,
     check: ({ f, th }) =>
       tell(
         f.counts.hiddenInputs >= th.minHiddenInputs,
-        `${f.counts.hiddenInputs} trusted inputs while the tab was hidden`,
+        `${f.counts.hiddenInputs} trusted inputs while hidden`,
       ),
   },
   {
-    id: "R8",
-    signal: "#3",
+    id: "R8", // signal #3 in 01-signals
     tier: 2,
     corroborator: true,
     check: ({ f, th, cohort }) => {

@@ -49,7 +49,10 @@ export interface Sink {
  */
 export interface Extractor {
   readonly events: readonly string[];
-  /** Skip events whose target is in an ignored subtree (sensitive fields, `[data-al-ignore]`). */
+  /**
+   * Skip events whose target is in an ignored subtree (sensitive fields, `[data-al-ignore]`).
+   * `pointermove` is never filtered: it carries no target data and is the hot path.
+   */
   readonly skipIgnored?: boolean;
   fold(f: Features, tr: Transient, e: Ev, sink: Sink): void;
 }
@@ -97,6 +100,8 @@ export interface Transient {
   lastDownAt: number;
   lastMouseSec: number;
   centreSizes: Set<string>;
+  /** The element under the mouse at the last move. */
+  overEl: object | null;
   hovered: WeakSet<object>;
   hoveredClicked: WeakSet<object>;
   // keyboard and forms
@@ -117,7 +122,8 @@ export interface Transient {
   // visibility and cadence
   hiddenAt: number | null;
   lastActionAt: number | null;
-  movesSinceAction: number;
+  /** `counts.mouseMoves` at the last action burst. */
+  movesAtAction: number;
 }
 
 const NEVER = Number.NEGATIVE_INFINITY;
@@ -132,6 +138,7 @@ export function emptyTransient(): Transient {
     lastDownAt: NEVER,
     lastMouseSec: NEVER,
     centreSizes: new Set(),
+    overEl: null,
     hovered: new WeakSet(),
     hoveredClicked: new WeakSet(),
     lastCharAt: null,
@@ -149,6 +156,6 @@ export function emptyTransient(): Transient {
     pageHeight: 800,
     hiddenAt: null,
     lastActionAt: null,
-    movesSinceAction: 0,
+    movesAtAction: 0,
   };
 }

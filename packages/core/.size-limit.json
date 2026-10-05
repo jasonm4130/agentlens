@@ -4,7 +4,7 @@
     "name": "agentlens.iife.js (IIFE)",
     "path": "dist/agentlens.iife.js",
     "gzip": true,
-    "limit": "10.5 KB"
+    "limit": "10 KB"
   },
-  { "name": "scorer.mjs (ESM)", "path": "dist/scorer.mjs", "gzip": true, "limit": "10 KB" }
+  { "name": "scorer.mjs (ESM)", "path": "dist/scorer.mjs", "gzip": true, "limit": "4.5 KB" }
 ]

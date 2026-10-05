@@ -6,7 +6,8 @@
   "scripts": {
     "playwright": "tsx src/playwright.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "perf": "tsx src/perf.ts"
   },
   "devDependencies": {
     "@agentlens/core": "workspace:*",

@@ -184,7 +184,10 @@ describe("#1, #2, #8, #11 pointer", () => {
 });
 
 describe("#4 hover", () => {
-  it("counts distinct hovered elements and those then clicked", () => {
+  const move = (t: number, target: object) =>
+    ev({ type: "pointermove", timeStamp: t, pointerType: "mouse", target });
+
+  it("counts distinct hovered elements and those then clicked; touch is not hover", () => {
     const f = emptyFeatures();
     const a = el();
     const b = el();
@@ -192,11 +195,13 @@ describe("#4 hover", () => {
       hover,
       f,
       emptyTransient(),
-      ev({ type: "mouseover", timeStamp: 1, target: a }),
-      ev({ type: "mouseover", timeStamp: 2, target: b }),
-      ev({ type: "mouseover", timeStamp: 3, target: a }),
-      ev({ type: "click", timeStamp: 4, target: a }),
-      ev({ type: "click", timeStamp: 5, target: a }),
+      move(1, a),
+      move(2, a),
+      move(3, b),
+      move(4, a),
+      ev({ type: "pointermove", timeStamp: 5, pointerType: "touch", target: el() }),
+      ev({ type: "click", timeStamp: 6, target: a }),
+      ev({ type: "click", timeStamp: 7, target: a }),
     );
     expect(f.counts).toMatchObject({ hovered: 2, hoveredClicked: 1 });
   });
@@ -463,8 +468,13 @@ describe("#3 cadence", () => {
     const f = emptyFeatures();
     const tr = emptyTransient();
     const move = (t: number) => ev({ type: "pointermove", timeStamp: t, pointerType: "mouse" });
+    const both = {
+      events: ["pointermove", ACTION],
+      fold: (...a: Parameters<typeof cadence.fold>) =>
+        (a[2].type === ACTION ? cadence : pointer).fold(...a),
+    };
     fold(
-      cadence,
+      both,
       f,
       tr,
       action(0),

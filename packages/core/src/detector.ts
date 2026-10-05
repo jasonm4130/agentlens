@@ -12,6 +12,8 @@ import type { Detector, DetectorOptions, Label, Mode, Signal, Verdict } from "./
 
 /** Labels that never trigger a `label-change` verdict, so consumers are not spammed early. */
 const QUIET: ReadonlySet<Label> = new Set<Label>(["insufficient-data", "abstain"]);
+/** Continuous activity still re-scores this often, though the debounce never goes quiet. */
+const MAX_WAIT_MS = 10000;
 
 let instance: Detector | null = null;
 
@@ -73,9 +75,25 @@ export function createDetectorWith(
 
   const emitter = createEmitter<{ verdict: Verdict; signal: Signal }>();
   let timer: unknown;
+  /** First and latest actions not yet scored, and the action the timer was set from. */
+  let firstAt: number | null = null;
+  let lastAt = 0;
+  let armedAt = 0;
   let flushed = false;
 
-  const run = (): Scored => score(features, RULESET, { mode, gpc, minActions });
+  let glProbed = false;
+  /**
+   * Scores the features. #17 needs a WebGL context (milliseconds of main thread), and only
+   * the class-B profile reads it, so it is probed the first time Tier 2 reaches an agent
+   * label and the session is re-scored; most human sessions never pay for it.
+   */
+  const run = (): Scored => {
+    const s = score(features, RULESET, { mode, gpc, minActions });
+    if (glProbed || s.tells.length > 0 || !s.label.startsWith("agent")) return s;
+    glProbed = true;
+    runProbes(env, [rendererProbe], features.probes);
+    return score(features, RULESET, { mode, gpc, minActions });
+  };
 
   const build = (s: Scored, reason: Verdict["reason"]): Verdict => ({
     label: s.label,
@@ -114,6 +132,7 @@ export function createDetectorWith(
   const cancel = (): void => {
     if (timer !== undefined) env.clearTimeout(timer);
     timer = undefined;
+    firstAt = null;
   };
 
   const rescore = (): void => {
@@ -121,6 +140,17 @@ export function createDetectorWith(
     const s = run();
     announce(s);
     if (!QUIET.has(s.label) && keyOf(s) !== state.last) emitVerdict(s, "label-change");
+  };
+
+  /**
+   * Debounce without a timer per action: when the timer fires, any action since it was set
+   * pushes it back by the difference, so scoring waits for `debounceMs` of quiet.
+   */
+  const quiet = (): void => {
+    timer = undefined;
+    if (lastAt <= armedAt) return rescore();
+    timer = env.setTimeout(quiet, lastAt - armedAt);
+    armedAt = lastAt;
   };
 
   const flush = (): void => {
@@ -146,17 +176,21 @@ export function createDetectorWith(
           instantiate(EXTRACTORS, { env, checkMarkers }),
           options.ignore ?? [],
           {
-            onAction: () => {
-              timer ??= env.setTimeout(rescore, debounceMs);
+            onAction: (t) => {
+              lastAt = t;
+              firstAt ??= t;
+              if (t - firstAt >= MAX_WAIT_MS) return rescore();
+              if (timer !== undefined) return;
+              armedAt = t;
+              timer = env.setTimeout(quiet, debounceMs);
             },
             onTell: rescore,
           },
         );
 
-  // After the caller has subscribed: the WebGL probe (too slow for init), then a first score
-  // so init-time tells reach `'signal'` listeners.
-  timer = env.setTimeout(() => {
-    runProbes(env, [rendererProbe], features.probes);
+  // A first score once the caller has subscribed, so init-time tells reach `'signal'` listeners.
+  let initTimer: unknown = env.setTimeout(() => {
+    initTimer = undefined;
     rescore();
   }, 0);
 
@@ -169,6 +203,7 @@ export function createDetectorWith(
       detachFlush();
       detachInput();
       cancel();
+      if (initTimer !== undefined) env.clearTimeout(initTimer);
       emitter.clear();
       if (opts?.clear) clearState(env);
       onDestroy();

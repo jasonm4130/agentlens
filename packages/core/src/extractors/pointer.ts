@@ -48,9 +48,11 @@ export const pointer: Extractor = {
   events: ["pointermove", "pointerdown", "pointerup", "click"],
   skipIgnored: true,
   fold(f, tr, e, sink) {
+    // DOM getters cost on the pointermove hot path, so each field is read once.
     const t = e.timeStamp;
-    if (e.type === "click") return onClick(f, tr, e, sink);
-    if (e.type === "pointerdown") tr.lastDownAt = t;
+    const kind = e.type;
+    if (kind === "click") return onClick(f, tr, e, sink);
+    if (kind === "pointerdown") tr.lastDownAt = t;
     if (!e.isTrusted) return;
     const c = f.counts;
     const type = e.pointerType;
@@ -68,7 +70,7 @@ export const pointer: Extractor = {
       bump(c, "mouseActiveSecs");
     }
 
-    if (e.type === "pointermove") {
+    if (kind === "pointermove") {
       if (e.buttons === 0 && tr.heldButton !== 1) tr.heldButton = null;
       bump(c, "mouseMoves");
       tr.moves.push(t);
@@ -78,7 +80,7 @@ export const pointer: Extractor = {
 
     const x = e.clientX ?? 0;
     const y = e.clientY ?? 0;
-    if (e.type === "pointerdown") {
+    if (kind === "pointerdown") {
       tr.lastInputAt = t;
       tr.heldButton = e.button ?? 0;
       if (e.button !== 0) return;
@@ -93,7 +95,7 @@ export const pointer: Extractor = {
       return;
     }
 
-    if (e.type !== "pointerup") return;
+    if (kind !== "pointerup") return;
     if (tr.heldButton !== 1) tr.heldButton = null;
     const d = tr.down;
     if (!d) return;

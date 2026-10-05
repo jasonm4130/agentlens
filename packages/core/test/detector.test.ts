@@ -4,7 +4,7 @@ import type { Ev } from "../src/extractors/extractor";
 import { emptyFeatures } from "../src/features";
 import type { SessionState } from "../src/state";
 import type { Signal, Verdict } from "../src/types";
-import { el, ev, fakeEnv, mouseClick, type FakeEnv } from "./helpers";
+import { el, ev, fakeEnv, mouseClick, typeText, wheelTicks, type FakeEnv } from "./helpers";
 
 function record(d: ReturnType<typeof createDetectorWith>) {
   const verdicts: Verdict[] = [];
@@ -178,7 +178,7 @@ describe("signal semantics", () => {
     const { signals } = record(d);
     env.runTimers();
     expect(signals).toEqual([
-      { rule: "custom-marker", detail: "consumer marker present", sessionId: expect.any(String) },
+      { rule: "custom-marker", detail: "consumer marker", sessionId: expect.any(String) },
     ]);
     const v = d.snapshot();
     expect(v).toMatchObject({ label: "agent-likely", confidence: "certain" });
@@ -328,6 +328,80 @@ describe("ignore selectors", () => {
     env.fire(ev({ type: "keydown", timeStamp: 2, key: "a", target: inside(".private") }));
     env.fire(ev({ type: "keydown", timeStamp: 3, key: "a", target: el() }));
     expect(d.snapshot().features.counts.keys).toBe(1);
+    d.destroy();
+  });
+});
+
+describe("lazy #17 WebGL probe", () => {
+  it("is not probed for a human-like session", () => {
+    let probed = 0;
+    const env = fakeEnv();
+    env.renderer = () => {
+      probed++;
+      return "Google SwiftShader";
+    };
+    const d = createDetectorWith(env);
+    env.runTimers();
+    for (const e of typeText(1000, 30, (i) => 90 + ((i * 37) % 150))) env.fire(e);
+    env.runTimers();
+    expect(d.snapshot().label).toBe("human-like");
+    expect(d.snapshot().features.probes.renderer).toBeNull();
+    expect(probed).toBe(0);
+    d.destroy();
+  });
+
+  it("is probed once Tier 2 reaches an agent label, and can attribute class B", () => {
+    let probed = 0;
+    const env = fakeEnv();
+    env.renderer = () => {
+      probed++;
+      return "Google SwiftShader";
+    };
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    const field = el({ value: "" });
+    for (const e of [
+      ...agentClicks(3),
+      ...typeText(20000, 20, () => 12, 2, field),
+      ...wheelTicks(
+        30000,
+        10,
+        () => 50,
+        () => 100,
+      ),
+    ])
+      env.fire(e);
+    env.runTimers();
+    expect(verdicts[verdicts.length - 1]).toMatchObject({ label: "agent-likely", agentClass: "B" });
+    expect(verdicts[verdicts.length - 1]?.features.probes.renderer).toBe("swiftshader");
+    d.snapshot();
+    expect(probed).toBe(1);
+    d.destroy();
+  });
+});
+
+describe("re-score debounce", () => {
+  it("waits for quiet input, then scores once", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env, { scoreDebounceMs: 1000 });
+    env.runTimers();
+    for (let i = 0; i < 5; i++)
+      env.fire(ev({ type: "keydown", timeStamp: 100 + i * 200, key: "a", code: "KeyA" }));
+    expect(env.pendingTimers()).toBe(1);
+    env.runTimers();
+    expect(env.pendingTimers()).toBe(0);
+    d.destroy();
+  });
+
+  it("scores during continuous input at least every 10 s", () => {
+    const env = fakeEnv({ nav: {} });
+    const d = createDetectorWith(env, { scoreDebounceMs: 1000 });
+    const { verdicts } = record(d);
+    env.runTimers();
+    // Agent-paced clicks every 300 ms never leave a quiet second, but the label still lands.
+    for (const e of agentClicks(40).map((e) => ({ ...e, timeStamp: e.timeStamp / 10 })))
+      env.fire(e);
+    expect(verdicts.map((v) => v.reason)).toContain("label-change");
     d.destroy();
   });
 });

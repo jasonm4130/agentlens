@@ -5,6 +5,8 @@ const shared = {
   target: "es2020",
   clean: false,
   minify: true,
+  // Pure annotations only help a downstream bundler, and these files are vendored as is.
+  outputOptions: { comments: false },
 } as const;
 
 // One build per entry, so agentlens.mjs and scorer.mjs are each a single self-contained

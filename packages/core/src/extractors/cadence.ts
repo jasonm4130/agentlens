@@ -11,28 +11,25 @@ const STILL_MOVES = 1;
 /**
  * #3 and the gap half of #4. Measures gaps between action bursts: a histogram and running
  * moments for the CV, how many fall in the 1.5-8 s think-time band, and whether the mouse
- * moved during them. Gaps spanning a hidden period or a page load are never counted, because
+ * moved during them (read from the pointer extractor's `mouseMoves`, so cadence never runs
+ * on the hot `pointermove` path). Gaps spanning a hidden period or a page load are never counted, because
  * the visibility extractor and a new page both reset the last action.
  */
 export const cadence: Extractor = {
-  events: ["pointermove", ACTION],
+  events: [ACTION],
   fold(f, tr, e) {
-    if (e.type === "pointermove") {
-      if (e.isTrusted && e.pointerType === "mouse") tr.movesSinceAction++;
-      return;
-    }
     const t = e.timeStamp;
+    const c = f.counts;
     const last = tr.lastActionAt;
     tr.lastActionAt = t;
     if (last === null) {
-      tr.movesSinceAction = 0;
+      tr.movesAtAction = c.mouseMoves;
       return;
     }
     const gap = t - last;
     if (gap < BURST_MS) return;
-    const c = f.counts;
-    const moves = tr.movesSinceAction;
-    tr.movesSinceAction = 0;
+    const moves = c.mouseMoves - tr.movesAtAction;
+    tr.movesAtAction = c.mouseMoves;
     bump(c, "actionGaps");
     addToHist(f, "actionGap", gap);
     addMoment(f, "actionGap", gap);

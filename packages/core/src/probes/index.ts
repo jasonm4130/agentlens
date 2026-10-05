@@ -87,7 +87,10 @@ export const PROBES: readonly Probe[] = [
   timezone,
 ];
 
-/** #17 creates a WebGL context, so the detector runs it after init. */
+/**
+ * #17 creates a WebGL context, so the detector runs it only once Tier 2 reaches an agent
+ * label (it feeds the class-B profile alone); `renderer` stays null until then.
+ */
 export const rendererProbe: Probe = (env) => ({ renderer: bucketRenderer(env.renderer()) });
 
 export function runProbes(env: Env, probes: readonly Probe[], into: Probes): void {

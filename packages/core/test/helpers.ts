@@ -19,7 +19,7 @@ export interface FakeEnv extends Env {
   /** Dispatches a plain event object to the listeners, as the browser would. */
   fire(e: Ev): void;
   setVisibility(v: "visible" | "hidden"): void;
-  /** Runs pending timers (in order); returns how many ran. */
+  /** Runs timers until none are pending, as if the clock passed every delay; returns how many ran. */
   runTimers(): number;
   listenerCount(): number;
   pendingTimers(): number;
@@ -118,10 +118,12 @@ export function fakeEnv(o: FakeEnvOptions = {}): FakeEnv {
     },
     runTimers() {
       let ran = 0;
-      for (const [id, fn] of Array.from(timers)) {
-        timers.delete(id);
-        fn();
-        ran++;
+      while (timers.size > 0 && ran < 1000) {
+        for (const [id, fn] of Array.from(timers)) {
+          timers.delete(id);
+          fn();
+          ran++;
+        }
       }
       return ran;
     },
@@ -221,7 +223,6 @@ export function mouseClick(
       }),
     );
   }
-  if (moves > 0) out.push(ev({ type: "mouseover", timeStamp: t - 4, target }));
   const p = { pointerType: "mouse", clientX: x, clientY: y, button: 0, target };
   out.push(ev({ type: "pointerdown", timeStamp: t, ...p }));
   out.push(ev({ type: "pointerup", timeStamp: t + (o.dwell ?? 90), ...p }));

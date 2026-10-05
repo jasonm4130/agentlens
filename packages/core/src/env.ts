@@ -54,10 +54,19 @@ function attempt<T>(fn: () => T, fallback: T): T {
   }
 }
 
+/** The smallest context there is: no buffers beyond colour, no antialiasing, low power GPU. */
+const GL_ATTRS: WebGLContextAttributes = {
+  alpha: false,
+  antialias: false,
+  depth: false,
+  stencil: false,
+  powerPreference: "low-power",
+};
+
 function readRenderer(doc: Document): string | null {
   const canvas = doc.createElement("canvas");
-  const gl = (canvas.getContext("webgl") ??
-    canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+  canvas.width = canvas.height = 1;
+  const gl = canvas.getContext("webgl", GL_ATTRS);
   if (!gl) return null;
   const ext = gl.getExtension("WEBGL_debug_renderer_info");
   const r = gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) as unknown;
@@ -101,9 +110,9 @@ export function browserEnv(win: Window = window): Env {
     storage: () => attempt(() => win.sessionStorage, null),
     setTimeout: (fn, ms) => win.setTimeout(fn, ms),
     clearTimeout: (id) => win.clearTimeout(id as number),
+    // In every browser the ES2020 target covers, secure context or not.
     randomBytes: (out) => {
-      if (win.crypto?.getRandomValues) win.crypto.getRandomValues(out);
-      else for (let i = 0; i < out.length; i++) out[i] = Math.floor(Math.random() * 256);
+      win.crypto.getRandomValues(out);
     },
   };
 }

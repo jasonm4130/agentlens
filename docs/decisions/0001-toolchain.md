@@ -34,7 +34,15 @@
 
 ## Size-limit measurements in this repo
 
-`pnpm size` with @size-limit/file, gzip. The M1 numbers and the final cap are in the M1 section of the README and the PR; the M0 scaffold measured 3.5 kB (ESM) and 3.55 kB (IIFE).
+`pnpm size` with @size-limit/file, gzip (size-limit's kB is 1,000 bytes).
+
+| Build                 | M0 scaffold | M1                | Cap in `.size-limit.json` |
+| --------------------- | ----------- | ----------------- | ------------------------- |
+| `agentlens.mjs` (ESM) | 3.5 kB      | 9.96 kB (9,959 B) | 10 kB                     |
+| `agentlens.iife.js`   | 3.55 kB     | 9.98 kB (9,985 B) | 10 kB                     |
+| `scorer.mjs`          | —           | 3.93 kB           | 4.5 kB                    |
+
+M1 lands above the plan's 7-9 KB estimate and just under the 10 KB cap. Before cutting anything, the build strips `@__PURE__` annotations (`outputOptions.comments: false`, -50 B), rule-to-signal references live in comments rather than rule data, and evidence strings are short. Measured savings from removing one probe (gzip -9 of the ESM build): #17 WebGL renderer 191 B, #18 geometry 128 B, #21 framework globals 73 B, #20 timezone 30 B. Removing all four would still leave about 9.5 KB, so the plan's 9 KB would also need behavioural signals cut; none are cut in M1.
 
 ## Not verified
 

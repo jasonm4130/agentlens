@@ -126,7 +126,7 @@ export interface Probes {
   platformMismatch: boolean | null;
   /** #15: desktop UA without `(hover:hover)` and `(pointer:fine)` */
   pointerMediaTell: boolean | null;
-  /** #17 */
+  /** #17, bucketed; null until Tier 2 first reaches an agent label, or when WebGL is unavailable */
   renderer: Renderer | null;
   /** #18 */
   outerEqInner: boolean | null;

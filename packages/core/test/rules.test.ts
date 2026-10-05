@@ -60,7 +60,9 @@ function humanClicks(n: number, t0 = 1000, seed = 7): Ev[] {
           buttons: 0,
         }),
       );
-    out.push(ev({ type: "mouseover", timeStamp: t + 5, target: el() }));
+    out.push(
+      ev({ type: "pointermove", timeStamp: t + 5, pointerType: "mouse", buttons: 0, target: el() }),
+    );
     t += 1500 + Math.round(r() * 3000);
     const target = el({ rect: [tx - 30 - r() * 20, ty - 10, 100 + Math.round(r() * 80), 40] });
     out.push(
@@ -134,14 +136,14 @@ describe("Tier 1 rules: one is enough, confidence certain, and a signal each", (
 
 describe("Tier 2 rules: each fires on its tell and abstains outside its gate", () => {
   it("R1 path: single-move displaced clicks fire; human paths do not; touch abstains", () => {
-    expect(check("R1", session(agentClicks(4)).f)).toMatch(/single-move and displaced/);
+    expect(check("R1", session(agentClicks(4)).f)).toMatch(/single-move displaced clicks/);
     expect(check("R1", session(humanClicks(4)).f)).toBe(false);
     expect(check("R1", session(agentClicks(2)).f)).toBeNull();
     expect(check("R1", emptyFeatures())).toBeNull();
   });
 
   it("R2 dwell: zero-dwell single-move clicks fire; a trackpad hint closes the gate", () => {
-    expect(check("R2", session(agentClicks(4)).f)).toMatch(/dwell under 20 ms/);
+    expect(check("R2", session(agentClicks(4)).f)).toMatch(/under 20 ms dwell/);
     expect(check("R2", session(humanClicks(4)).f)).toBe(false);
     const trackpad = session([
       ...wheelTicks(
@@ -156,7 +158,7 @@ describe("Tier 2 rules: each fires on its tell and abstains outside its gate", (
   });
 
   it("R3 frozen: no moves in idle gaps and no stray hovers fire; a wandering mouse does not", () => {
-    expect(check("R3", session(agentClicks(5)).f)).toMatch(/moves per idle second/);
+    expect(check("R3", session(agentClicks(5)).f)).toMatch(/moves\/idle s/);
     expect(check("R3", session(humanClicks(5)).f)).toBe(false);
     expect(check("R3", session(typeText(0, 20, () => 3000)).f)).toBeNull();
   });
@@ -231,7 +233,7 @@ describe("Tier 2 rules: each fires on its tell and abstains outside its gate", (
   });
 
   it("R7 centre: dead-centre clicks on two sizes fire; off-centre do not", () => {
-    expect(check("R7", session(agentClicks(4)).f)).toMatch(/of the centre/);
+    expect(check("R7", session(agentClicks(4)).f)).toMatch(/within 5% of centre/);
     expect(check("R7", session(humanClicks(4)).f)).toBe(false);
   });
 
@@ -264,7 +266,7 @@ describe("Tier 2 rules: each fires on its tell and abstains outside its gate", (
       ev({ type: "keydown", timeStamp: 2000, key: "a" }),
       ev({ type: "pointerdown", timeStamp: 2500, pointerType: "mouse" }),
     ]);
-    expect(check("hidden-input", s.f)).toMatch(/while the tab was hidden/);
+    expect(check("hidden-input", s.f)).toMatch(/while hidden/);
   });
 
   it("R8 cadence: still 1.5-8 s think gaps fire; it is off for keyboard cohorts", () => {
@@ -452,7 +454,9 @@ describe("accessibility counterexamples: must abstain or stay human-like", () =>
       const t = i * 3000;
       events.push(ev({ type: "pointerdown", timeStamp: t, pointerType: "touch" }));
       events.push(ev({ type: "pointerup", timeStamp: t + 70, pointerType: "touch" }));
-      events.push(ev({ type: "mouseover", timeStamp: t + 80, target: el() }));
+      events.push(
+        ev({ type: "pointermove", timeStamp: t + 80, pointerType: "touch", target: el() }),
+      );
       events.push(ev({ type: "click", timeStamp: t + 90, detail: 1 }));
       for (let k = 0; k < 20; k++) events.push(ev({ type: "scroll", timeStamp: t + 600 + k * 40 }));
     }
