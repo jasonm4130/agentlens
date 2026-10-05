@@ -4,6 +4,7 @@ import pytest
 from conftest import agent_label, human_label, verdict
 
 from agentlens_eval.gate import (
+    DEFERRED,
     FAIL,
     INCOMPLETE,
     NOT_EVALUATED,
@@ -17,6 +18,7 @@ from agentlens_eval.gate import (
 from agentlens_eval.golden import write_golden
 from agentlens_eval.load import label_errors, load
 from agentlens_eval.metrics import human_rows, minimal_baseline, recall_rows
+from agentlens_eval.report import missing_runs
 from agentlens_eval.stats import Rate, rule_of_three, wilson
 from baselines.minimal_tree import fit, flags_at_equal_human_flags, grouped_scores, predict
 
@@ -124,6 +126,25 @@ def test_gate_never_passes_without_humans(tmp_path, write_run):
     assert checks["3"].status == INCOMPLETE
     assert checks["4"].status == NOT_EVALUATED
     assert checks["6.size"].status == NOT_RUN
+    assert not passed(list(checks.values()))
+
+
+def test_computer_use_is_deferred_not_missing(tmp_path, write_run):
+    run = "hl-0"
+    write_run(
+        run,
+        agent_label(run, "playwright-headless", "A"),
+        verdict("agent-likely", 1, confidence="certain", rules=("webdriver",), agent_class="A"),
+    )
+    checks = _gate(tmp_path)
+    assert checks["5"].gated is False
+    assert any(
+        d.startswith(f"- computer-use-demo: {DEFERRED}, ") and "OpenRouter" in d
+        for d in checks["5"].detail
+    )
+    need = missing_runs(load([tmp_path]).runs)
+    cud = [line for line in need if "computer-use-demo" in line]
+    assert len(cud) == 1 and DEFERRED in cud[0] and "more runs" not in cud[0]
     assert not passed(list(checks.values()))
 
 

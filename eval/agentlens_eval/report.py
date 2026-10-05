@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from .gate import RECALL_GATES, Check, passed
+from .gate import DEFERRED, DEFERRED_GENERATORS, RECALL_GATES, Check, passed
 from .load import HUMAN_COHORTS, Loaded
 from .metrics import (
     POWER_STATEMENT,
@@ -111,7 +111,12 @@ def missing_runs(runs: pl.DataFrame) -> list[str]:
     have_c = runs.filter(pl.col("agent_class") == "C").height if not runs.is_empty() else 0
     if have_c == 0:
         out.append("- Class C runs for check 4 (Claude in Chrome above covers it).")
-    if counts.get("computer-use-demo", 0) < 10:
+    if "computer-use-demo" in DEFERRED_GENERATORS:
+        out.append(
+            f"- computer-use-demo (class B, reported): {DEFERRED}, not needed for this gate "
+            f"({DEFERRED_GENERATORS['computer-use-demo']})."
+        )
+    elif counts.get("computer-use-demo", 0) < 10:
         out.append(
             f"- computer-use-demo (class B, reported): {10 - counts.get('computer-use-demo', 0)} "
             f"more runs ({NEEDS['computer-use-demo']})."

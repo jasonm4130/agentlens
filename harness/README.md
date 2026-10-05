@@ -24,17 +24,17 @@ Generators: `playwright-headless`, `playwright-headful`, `patchright`, `browser-
 
 ## The matrix (architecture 7.2)
 
-| Class | Generator                          | Runs   | Needs                                    | How                                                                                                |
-| ----- | ---------------------------------- | ------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| A     | Playwright headless                | 15     | nothing                                  | `pnpm --filter @agentlens/runners-ts matrix --generator=playwright-headless --runs=15 --baselines` |
-| A     | Playwright headful                 | 15     | a display (Xvfb on Linux)                | `... matrix --generator=playwright-headful --runs=15 --baselines`                                  |
-| A     | Patchright headful                 | 15     | a display                                | `... matrix --generator=patchright --runs=15 --baselines`                                          |
-| A     | Playwright + ghost-cursor          | 10     | a display                                | `... matrix --generator=ghost-cursor --runs=10 --baselines`                                        |
-| A     | Patchright + ghost-cursor (extra)  | 10     | a display                                | `... matrix --generator=ghost-cursor-patchright --runs=10 --baselines`                             |
-| A     | Browser Use, stock (highlights on) | 15     | an LLM key                               | [Browser Use](#browser-use)                                                                        |
-| B     | computer-use-demo (Docker, Xvfb)   | 10     | `ANTHROPIC_API_KEY`, Docker, an operator | [computer-use-demo](#computer-use-demo)                                                            |
-| C     | Claude in Chrome, hands-off        | 10     | an operator with Claude in Chrome        | [Claude in Chrome](#claude-in-chrome-and-other-class-c-agents)                                     |
-| C     | Atlas, Comet, Gemini in Chrome     | 5 each | access to each product                   | same as Claude in Chrome                                                                           |
+| Class | Generator                                             | Runs   | Needs                                    | How                                                                                                |
+| ----- | ----------------------------------------------------- | ------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| A     | Playwright headless                                   | 15     | nothing                                  | `pnpm --filter @agentlens/runners-ts matrix --generator=playwright-headless --runs=15 --baselines` |
+| A     | Playwright headful                                    | 15     | a display (Xvfb on Linux)                | `... matrix --generator=playwright-headful --runs=15 --baselines`                                  |
+| A     | Patchright headful                                    | 15     | a display                                | `... matrix --generator=patchright --runs=15 --baselines`                                          |
+| A     | Playwright + ghost-cursor                             | 10     | a display                                | `... matrix --generator=ghost-cursor --runs=10 --baselines`                                        |
+| A     | Patchright + ghost-cursor (extra)                     | 10     | a display                                | `... matrix --generator=ghost-cursor-patchright --runs=10 --baselines`                             |
+| A     | Browser Use, stock (highlights on)                    | 15     | an LLM key                               | [Browser Use](#browser-use)                                                                        |
+| B     | computer-use-demo (Docker, Xvfb), deferred for v0.1.0 | 10     | `ANTHROPIC_API_KEY`, Docker, an operator | [computer-use-demo](#computer-use-demo)                                                            |
+| C     | Claude in Chrome, hands-off                           | 10     | an operator with Claude in Chrome        | [Claude in Chrome](#claude-in-chrome-and-other-class-c-agents)                                     |
+| C     | Atlas, Comet, Gemini in Chrome                        | 5 each | access to each product                   | same as Claude in Chrome                                                                           |
 
 Anthropic keys come only from 1Password through the committed `.env.op`: `op run --env-file .env.op -- <command>`. Confirm the vault and item with `op item list` before the first live run. Browser Use can instead go through OpenRouter (below); its key lives only in the environment of the runner process, never in the repo or a log.
 
@@ -69,7 +69,7 @@ cd harness/runners-py
 op run --env-file ../../.env.op -- uv run agentlens-runner run --run-id cud-01
 ```
 
-These runs need a direct Anthropic key: on 2026-10-05 OpenRouter's Anthropic-compatible endpoint rejected every computer-use tool version (`computer_toolset_20260801`, `computer_20251124`, `computer_20250124`) with a 400, while the same request without the tool went through.
+The v0.1.0 release gate defers these runs (the gate report says DEFERRED: neither passed nor failed). They need a direct Anthropic key: on 2026-10-05 OpenRouter's Anthropic-compatible endpoint rejected every computer-use tool version (`computer_toolset_20260801`, `computer_20251124`, `computer_20250124`) with a 400, while the same request without the tool went through.
 
 It writes the class B label and prints the Docker command and the prompt to paste into the demo UI at `http://localhost:8501`. The demo's browser reaches the recorder at `host.docker.internal:8787`. Leave the agent alone until it clicks Confirm, then close the browser tab so the page flushes its verdict. M0's open check also applies: note which browser and WebGL renderer bucket the container reports (`features.probes.renderer` in the JSONL).
 

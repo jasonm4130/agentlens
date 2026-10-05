@@ -2,7 +2,7 @@
 
 A front-end-only TypeScript library that estimates whether a browsing session is driven by an agent (computer use, Playwright and friends, in-browser assistants) or a human. It listens passively to pointer, keyboard, form and scroll events, folds them on the device into fixed-bin histograms, scores the session with a compiled-in rules engine, and hands the verdict to your callback. **The core never makes a network request.** What you do with the verdict is yours.
 
-**Status: M2 (release gate, eval and docs), not yet released.** The release gate in [docs/plan/03-architecture.md](docs/plan/03-architecture.md) section 7.6 has **not passed**: no human or assistive-technology sessions have been recorded yet, the Claude in Chrome runs need an operator, and the computer-use runs need a direct Anthropic key, Docker and an operator. The [gate report](eval/reports/gate-2026-10-05.md) lists every check and what each still needs. Until the gate passes, treat behavioural (Tier 2) labels as evidence only.
+**Status: M2 (release gate, eval and docs), not yet released.** The release gate in [docs/plan/03-architecture.md](docs/plan/03-architecture.md) section 7.6 has **not passed**: no human or assistive-technology sessions have been recorded yet, and the Claude in Chrome runs need an operator. The computer-use (class B) runs are deferred from the v0.1.0 gate, neither passed nor failed: OpenRouter rejects the Anthropic computer-use tool, and the Claude in Chrome runs cover Claude-driven browsing. The [gate report](eval/reports/gate-2026-10-05.md) lists every check and what each still needs. Until the gate passes, treat behavioural (Tier 2) labels as evidence only.
 
 ## The trade-off, first
 
