@@ -74,8 +74,12 @@ def run_commands(root: Path, only: list[str] | None = None) -> dict[str, Command
     for name, cmd in COMMANDS.items():
         if only is not None and name not in only:
             continue
-        p = subprocess.run(cmd, cwd=root, capture_output=True, text=True, check=False)
-        results[name] = CommandResult(ok=p.returncode == 0, output=(p.stdout + p.stderr).strip())
+        p = subprocess.run(
+            cmd, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False
+        )
+        # Committed reports carry no local paths.
+        output = p.stdout.replace(str(root), ".").strip()
+        results[name] = CommandResult(ok=p.returncode == 0, output=output)
     return results
 
 
@@ -193,7 +197,7 @@ def check_minimal(runs: pl.DataFrame, minimal: MinimalResult) -> Check:
 
 def check_reported(runs: pl.DataFrame) -> Check:
     c = Check(
-        "5", "B, Patchright and ghost-cursor recall (reported, not gated)", REPORTED, gated=False
+        "5", "B, Patchright and ghost-cursor recall, published as known gaps", REPORTED, gated=False
     )
     a = agents(runs)
     for gen in REPORTED_GENERATORS:
