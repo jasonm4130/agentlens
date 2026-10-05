@@ -1,0 +1,44 @@
+name: release
+
+# On a pushed v* tag: run every CI check, build, and attach agentlens.mjs, agentlens.iife.js,
+# scorer.mjs and the .d.ts files (plus SHA256SUMS) to a draft GitHub Release for that tag.
+# Publishing the draft is a maintainer's decision, because its notes must state the release
+# gate result (architecture 7.6). Nothing is published to npm.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @agentlens/runners-ts exec playwright install --with-deps --only-shell chromium
+      # The same checks as CI, so a tag on an unchecked commit cannot release.
+      - run: pnpm exec turbo run lint:all typecheck build test size check-exports
+      - name: Stage release files
+        run: scripts/release-assets.sh "$GITHUB_REF_NAME" release-files release-notes.md
+      - name: Create the draft release, or refresh the files on an existing one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-files/* --clobber
+          else
+            gh release create "$TAG" release-files/* --draft --verify-tag \
+              --title "agentlens $TAG" --notes-file release-notes.md
+          fi

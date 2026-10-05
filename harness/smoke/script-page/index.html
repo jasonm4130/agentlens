@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>agentlens from a script tag</title>
+    <!-- The release's agentlens.iife.js, copied next to this page by the smoke test. -->
+    <script src="agentlens.iife.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>agentlens from a script tag</h1>
+      <button type="button">A button</button>
+    </main>
+    <script>
+      const d = window.agentlens.createDetector();
+      d.on("verdict", (v) => console.log("agentlens verdict " + v.label + " " + v.reason));
+    </script>
+  </body>
+</html>

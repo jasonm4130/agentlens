@@ -3,13 +3,10 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { startRecorder, type Recorder } from "@agentlens/recorder";
+import { fixtureMounts, startRecorder, type Recorder } from "@agentlens/recorder";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readRecorded, runTaskFlow } from "../src/playwright";
-
-const root = (p: string) => fileURLToPath(new URL(`../../../${p}`, import.meta.url));
 
 describe("Playwright stock headless Chromium on the fixture", () => {
   const outDir = mkdtempSync(join(tmpdir(), "agentlens-headless-"));
@@ -19,7 +16,7 @@ describe("Playwright stock headless Chromium on the fixture", () => {
   beforeAll(async () => {
     rec = await startRecorder({
       outDir,
-      mounts: { "/lib": root("packages/core/dist"), "/": root("apps/fixture") },
+      mounts: fixtureMounts(),
     });
     browser = await chromium.launch();
   });

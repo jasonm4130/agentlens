@@ -170,12 +170,24 @@ catalogs:
     '@changesets/cli':
       specifier: ^3.0.3
       version: 3.0.3
+    '@doubleagent-so/agent-detector':
+      specifier: 0.3.0
+      version: 0.3.0
+    '@fingerprintjs/botd':
+      specifier: 2.0.0
+      version: 2.0.0
     '@size-limit/file':
       specifier: ^14.1.0
       version: 14.1.0
     '@types/node':
       specifier: ^24.0.0
       version: 24.19.1
+    axe-core:
+      specifier: ^4.13.0
+      version: 4.13.0
+    ghost-cursor:
+      specifier: ^1.4.2
+      version: 1.4.2
     happy-dom:
       specifier: ^20.14.5
       version: 20.14.5
@@ -188,6 +200,9 @@ catalogs:
     oxlint-tsgolint:
       specifier: ^7.0.2003
       version: 7.0.2003
+    patchright:
+      specifier: ^1.63.0
+      version: 1.63.0
     playwright:
       specifier: ^1.63.0
       version: 1.63.0
@@ -209,6 +224,9 @@ catalogs:
     typescript:
       specifier: ^7.0.2
       version: 7.0.2
+    vite:
+      specifier: ^8.3.2
+      version: 8.3.2
     vitest:
       specifier: ^5.0.3
       version: 5.0.3
@@ -243,6 +261,13 @@ importers:
         version: 5.0.3(@types/node@24.19.1)(happy-dom@20.14.5)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   harness/recorder:
+    dependencies:
+      '@doubleagent-so/agent-detector':
+        specifier: 'catalog:'
+        version: 0.3.0
+      '@fingerprintjs/botd':
+        specifier: 'catalog:'
+        version: 2.0.0
     devDependencies:
       tsx:
         specifier: 'catalog:'
@@ -259,12 +284,24 @@ importers:
       '@agentlens/recorder':
         specifier: workspace:*
         version: link:../recorder
+      axe-core:
+        specifier: 'catalog:'
+        version: 4.13.0
+      ghost-cursor:
+        specifier: 'catalog:'
+        version: 1.4.2(supports-color@7.2.0)
+      patchright:
+        specifier: 'catalog:'
+        version: 1.63.0
       playwright:
         specifier: 'catalog:'
         version: 1.63.0
       tsx:
         specifier: 'catalog:'
         version: 4.23.15
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.1)(happy-dom@20.14.5)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -382,6 +419,9 @@ packages:
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+
+  '@doubleagent-so/agent-detector@0.3.0':
+    resolution: {integrity: sha512-lQfBjUPypGWrPmhnsQAGUUEES17XD1IiOLioKNMuwvdTGbq49K2f2Z1P5ty0HPPTz4OvranwKNNikv0yAgWWLg==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -538,6 +578,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fingerprintjs/botd@2.0.0':
+    resolution: {integrity: sha512-yhuz23NKEcBDTHmGz/ULrXlGnbHenO+xZmVwuBkuqHUkqvaZ5TAA0kAgcRy4Wyo5dIBdkIf57UXX8/c9UlMLJg==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -991,6 +1034,9 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@types/bezier-js@4.1.3':
+    resolution: {integrity: sha512-FNVVCu5mx/rJCWBxLTcL7oOajmGtWtBTDjq6DSUWUI12GeePivrZZXz+UgE0D6VYsLEjvExRO03z4hVtu3pTEQ==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -1325,6 +1371,13 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
+  axe-core@4.13.0:
+    resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
+    engines: {node: '>=4'}
+
+  bezier-js@6.1.4:
+    resolution: {integrity: sha512-PA0FW9ZpcHbojUCMu28z9Vg/fNkwTj5YhusSAjHHDfHDGLxJ6YUKrAN2vk1fP2MMOxVw4Oko16FMlRGVBGqLKg==}
+
   buffer-image-size@0.6.4:
     resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
     engines: {node: '>=4.0'}
@@ -1374,6 +1427,15 @@ packages:
   commander@10.0.1:
     resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
     engines: {node: '>=14'}
+
+  debug@4.4.3:
+    resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
 
   defu@6.1.7:
     resolution: {integrity: sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==}
@@ -1461,6 +1523,9 @@ packages:
   get-tsconfig@5.0.0-beta.6:
     resolution: {integrity: sha512-X6fBC0pmImC70gvX2zm56go9hx0MyoGVdG0tUCkg/D+Xnh5TJsOZ7iDbOdI3PvmtrDxnu1YdDufpK2QJX1Meqw==}
     engines: {node: '>=20.20.0'}
+
+  ghost-cursor@1.4.2:
+    resolution: {integrity: sha512-NPMuH05Ik9h99zrAb4fvAzhB4T6MqKwdPoI+Me0IJWN3676j4UoAsjKN/cJq5AG4zyZwAEPPggZXHVU0P57/5g==}
 
   happy-dom@20.14.5:
     resolution: {integrity: sha512-x/RzkpWO40bTjIoT30iQtt64FLLmH/iRcUCN2X//bLx7H3ifkdfPXyqsro/OYtqzIAhiLMMA7mmiOR9C3NOKjQ==}
@@ -1600,6 +1665,9 @@ packages:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
 
+  ms@2.1.3:
+    resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
@@ -1668,6 +1736,16 @@ packages:
 
   parse5@6.0.1:
     resolution: {integrity: sha512-Ofn/CTFzRGTTxwpNEs9PP93gXShHcTq255nzRYSKe8AkVpZY7e1fpmTfOyoIvjP5HG7Z2ZM7VS9PPhQGW2pOpw==}
+
+  patchright-core@1.63.0:
+    resolution: {integrity: sha512-nuRJVTMVKoOFzY8vmwFqJZR3F0trUCKiPzDSgCOPq/yHHTefm9czILV23dXJsi5mvS7sCy7U1CqG7edA/21DtQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  patchright@1.63.0:
+    resolution: {integrity: sha512-WVXhmNhAJ5I+CmcHEu/I3KMKhOlQaKS1XJsk+5nRIypKJ3Dq9IaQP29p4vB3I1FWCTarUXVRj02Na30wGcuztQ==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -2159,6 +2237,8 @@ snapshots:
   '@colors/colors@1.5.0':
     optional: true
 
+  '@doubleagent-so/agent-detector@0.3.0': {}
+
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
 
@@ -2236,6 +2316,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fingerprintjs/botd@2.0.0': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -2480,6 +2562,8 @@ snapshots:
   '@turbo/windows-arm64@2.11.7':
     optional: true
 
+  '@types/bezier-js@4.1.3': {}
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -2660,6 +2744,10 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
+  axe-core@4.13.0: {}
+
+  bezier-js@6.1.4: {}
+
   buffer-image-size@0.6.4:
     dependencies:
       '@types/node': 24.19.1
@@ -2707,6 +2795,12 @@ snapshots:
   color-name@1.1.4: {}
 
   commander@10.0.1: {}
+
+  debug@4.4.3(supports-color@7.2.0):
+    dependencies:
+      ms: 2.1.3
+    optionalDependencies:
+      supports-color: 7.2.0
 
   defu@6.1.7: {}
 
@@ -2787,6 +2881,14 @@ snapshots:
   get-tsconfig@5.0.0-beta.6:
     dependencies:
       resolve-pkg-maps: 1.0.0
+
+  ghost-cursor@1.4.2(supports-color@7.2.0):
+    dependencies:
+      '@types/bezier-js': 4.1.3
+      bezier-js: 6.1.4
+      debug: 4.4.3(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
 
   happy-dom@20.14.5:
     dependencies:
@@ -2896,6 +2998,8 @@ snapshots:
 
   mri@1.2.0: {}
 
+  ms@2.1.3: {}
+
   mz@2.7.0:
     dependencies:
       any-promise: 1.3.0
@@ -2986,6 +3090,12 @@ snapshots:
   parse5@5.1.1: {}
 
   parse5@6.0.1: {}
+
+  patchright-core@1.63.0: {}
+
+  patchright@1.63.0:
+    dependencies:
+      patchright-core: 1.63.0
 
   picocolors@1.1.1: {}
 

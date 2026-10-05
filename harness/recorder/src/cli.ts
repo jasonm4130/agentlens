@@ -1,13 +1,13 @@
-import { fileURLToPath } from "node:url";
+import { fixtureMounts, OUT_DIR } from "./mounts";
 import { startRecorder } from "./server";
 
-const root = (p: string) => fileURLToPath(new URL(`../../../${p}`, import.meta.url));
-
 const rec = await startRecorder({
-  outDir: root("harness/recorder/out"),
-  mounts: { "/lib": root("packages/core/dist"), "/": root("apps/fixture") },
+  outDir: OUT_DIR,
+  mounts: fixtureMounts(),
   port: Number(process.env.PORT ?? 8787),
+  ...(process.env.HOST ? { host: process.env.HOST } : {}),
 });
 console.log(
   `recorder + fixture on ${rec.url}/?run=<id>  (records to harness/recorder/out/<id>.jsonl)`,
 );
+console.log("add &baselines=1 to also record the BotD and agent-detector baselines");
