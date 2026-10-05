@@ -3,7 +3,12 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/fixture/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/fixture/**",
+        "$TURBO_ROOT$/harness/smoke/**",
+        "$TURBO_ROOT$/README.md"
+      ]
     }
   }
 }

@@ -7,12 +7,17 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/server.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "start": "tsx src/cli.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "label": "tsx src/label-cli.ts"
+  },
+  "dependencies": {
+    "@doubleagent-so/agent-detector": "catalog:",
+    "@fingerprintjs/botd": "catalog:"
   },
   "devDependencies": {
     "tsx": "catalog:",

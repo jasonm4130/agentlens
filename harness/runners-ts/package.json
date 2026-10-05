@@ -7,13 +7,19 @@
     "playwright": "tsx src/playwright.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "perf": "tsx src/perf.ts"
+    "perf": "tsx src/perf.ts",
+    "matrix": "tsx src/matrix.ts",
+    "data-table": "tsx src/data-table.ts"
   },
   "devDependencies": {
     "@agentlens/core": "workspace:*",
     "@agentlens/recorder": "workspace:*",
+    "axe-core": "catalog:",
+    "ghost-cursor": "catalog:",
+    "patchright": "catalog:",
     "playwright": "catalog:",
     "tsx": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

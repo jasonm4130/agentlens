@@ -1,0 +1,183 @@
+{
+  "run": "ghost-cursor-patchright-20261005-09",
+  "truth": {
+    "truth": "agent",
+    "agent_class": "A",
+    "generator": "ghost-cursor-patchright",
+    "config": "Patchright headful, ghost-cursor pointer, fill()",
+    "task": "fixture-flow"
+  },
+  "mode": "full",
+  "gpc": false,
+  "rulesetVersion": "2026.10.1",
+  "featuresVersion": 2,
+  "expected": {
+    "label": "human-like",
+    "confidence": "medium"
+  },
+  "changes": [],
+  "features": {
+    "counts": {
+      "mouseEvents": 222,
+      "touchEvents": 0,
+      "penEvents": 0,
+      "clicks": 5,
+      "anchoredClicks": 2,
+      "singleMoveClicks": 1,
+      "displacedSingleMoveClicks": 0,
+      "shortDwellClicks": 0,
+      "singleMoveShortDwellClicks": 0,
+      "mouseMoves": 212,
+      "mouseActiveSecs": 11,
+      "activations": 0,
+      "untrustedClicks": 0,
+      "orphanClicks": 0,
+      "centreSampled": 5,
+      "centreHits": 0,
+      "centreSizes": 2,
+      "hovered": 26,
+      "hoveredClicked": 5,
+      "idleGaps": 6,
+      "idleMoves": 211,
+      "idleSecs": 17,
+      "keys": 0,
+      "chars": 0,
+      "imeKeys": 0,
+      "repeatKeys": 0,
+      "navKeys": 0,
+      "pasteKeys": 0,
+      "findKeys": 0,
+      "inputs": 6,
+      "untrustedInputs": 0,
+      "compositions": 0,
+      "valueJumps": 6,
+      "fillFields": 0,
+      "keylessInsertText": 4,
+      "autofillJumps": 2,
+      "pastes": 0,
+      "copies": 0,
+      "contextmenus": 0,
+      "pasteNoCopy": 0,
+      "buTrio": 0,
+      "wheelTicks": 68,
+      "wheelGestures": 2,
+      "wheelSameDelta": 0,
+      "wheelFractional": 0,
+      "wheelSmall": 0,
+      "noInputScrolls": 0,
+      "scrollThenAct": 0,
+      "hiddenTransitions": 0,
+      "hiddenInputs": 0,
+      "actionGaps": 6,
+      "cadenceGaps": 5,
+      "stillGaps": 0
+    },
+    "hist": {
+      "clickDwell": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      "interKey": null,
+      "keyHold": null,
+      "wheelDt": [
+        0,
+        0,
+        0,
+        14,
+        45,
+        7,
+        0,
+        0,
+        0
+      ],
+      "wheelDelta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        26,
+        42,
+        0,
+        0
+      ],
+      "actionGap": [
+        0,
+        0,
+        1,
+        1,
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "centreDev": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5
+      ],
+      "clickSlip": [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "moments": {
+      "interKey": null,
+      "wheelDt": {
+        "n": 66,
+        "sum": 7682,
+        "sumSq": 977790
+      },
+      "actionGap": {
+        "n": 6,
+        "sum": 17067,
+        "sumSq": 77498283
+      }
+    },
+    "probes": {
+      "webdriver": false,
+      "webdriverOwn": false,
+      "headlessUA": false,
+      "platformMismatch": false,
+      "pointerMediaTell": false,
+      "renderer": null,
+      "outerEqInner": false,
+      "availEqScreen": true,
+      "xgaDpr1": false,
+      "fwGlobals": false,
+      "tzQuarterHours": 44,
+      "maxTouchPoints": 0,
+      "anyCoarse": false,
+      "pointerFine": true,
+      "desktopUA": true
+    },
+    "markers": {
+      "claude": false,
+      "browserUse": false,
+      "custom": false
+    }
+  }
+}

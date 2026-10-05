@@ -15,11 +15,9 @@
  *
  * Usage: pnpm --filter @agentlens/runners-ts perf [--seconds=60] [--runs=3] [--variant=iife]
  */
-import { fileURLToPath } from "node:url";
-import { startRecorder } from "@agentlens/recorder";
+import { fixtureMounts, OUT_DIR, startRecorder } from "@agentlens/recorder";
 import { chromium, type CDPSession, type Page } from "playwright";
 
-const root = (p: string) => fileURLToPath(new URL(`../../../${p}`, import.meta.url));
 const flag = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 
 export interface PerfResult {
@@ -134,8 +132,8 @@ export async function measurePerf(
   throttle = 4,
 ): Promise<PerfResult> {
   const rec = await startRecorder({
-    outDir: root("harness/recorder/out"),
-    mounts: { "/lib": root("packages/core/dist"), "/": root("apps/fixture") },
+    outDir: OUT_DIR,
+    mounts: fixtureMounts(),
   });
   const browser = await chromium.launch();
   try {

@@ -9,6 +9,8 @@ export interface RecorderOptions {
   /** Static roots, keyed by URL prefix (the fixture page and the built library). */
   mounts: Record<string, string>;
   port?: number;
+  /** Default 127.0.0.1. Set 0.0.0.0 only to reach the fixture from a phone on your network. */
+  host?: string;
 }
 
 export interface Recorder {
@@ -90,12 +92,13 @@ export function startRecorder(opts: RecorderOptions): Promise<Recorder> {
     res.writeHead(404).end("not found");
   });
   return new Promise((resolveStart) => {
-    server.listen(opts.port ?? 0, "127.0.0.1", () => {
+    const host = opts.host ?? "127.0.0.1";
+    server.listen(opts.port ?? 0, host, () => {
       const addr = server.address();
       const port = typeof addr === "object" && addr ? addr.port : 0;
       resolveStart({
         server,
-        url: `http://127.0.0.1:${port}`,
+        url: `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}`,
         close: () => new Promise((r) => server.close(() => r())),
       });
     });
