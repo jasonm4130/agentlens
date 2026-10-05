@@ -2,7 +2,7 @@
 
 A front-end-only TypeScript library that estimates whether a browsing session is driven by an agent (computer use, Playwright and friends, in-browser assistants) or a human. It listens passively to pointer, keyboard, form and scroll events, folds them on the device into fixed-bin histograms, scores the session with a compiled-in rules engine, and hands the verdict to your callback. **The core never makes a network request.** What you do with the verdict is yours.
 
-**Status: M2 (release gate, eval and docs), not yet released.** The release gate in [docs/plan/03-architecture.md](docs/plan/03-architecture.md) section 7.6 has **not passed**: no human or assistive-technology sessions have been recorded yet, and the Browser Use, computer-use and Claude in Chrome runs need API keys and an operator. The [gate report](eval/reports/gate-2026-10-05.md) lists every check and what each still needs. Until the gate passes, treat behavioural (Tier 2) labels as evidence only.
+**Status: M2 (release gate, eval and docs), not yet released.** The release gate in [docs/plan/03-architecture.md](docs/plan/03-architecture.md) section 7.6 has **not passed**: no human or assistive-technology sessions have been recorded yet, the Claude in Chrome runs need an operator, and the computer-use runs need a direct Anthropic key, Docker and an operator. The [gate report](eval/reports/gate-2026-10-05.md) lists every check and what each still needs. Until the gate passes, treat behavioural (Tier 2) labels as evidence only.
 
 ## The trade-off, first
 
@@ -22,15 +22,16 @@ That is acceptable for what this library is for: **understanding your own traffi
 
 From the harness runs of 2026-10-05 on the fixture page (Linux, Chromium 153, ruleset 2026.10.1), each run a fresh browser doing the same 3-page task; full tables with baselines in the [gate report](eval/reports/gate-2026-10-05.md):
 
-| Generator (class A)                | Runs | Flagged (agent-likely or agent-unattributed) | How                         | BotD 2.0.0 | agent-detector 0.3.0 |
-| ---------------------------------- | ---- | -------------------------------------------- | --------------------------- | ---------- | -------------------- |
-| Playwright, headless               | 15   | 15/15 (95% CI 79.6-100%)                     | Tier 1: webdriver, headless | 15/15      | 15/15                |
-| Playwright, headful                | 15   | 15/15 (95% CI 79.6-100%)                     | Tier 1: webdriver           | 15/15      | 15/15                |
-| Patchright, headful                | 15   | 15/15 (95% CI 79.6-100%), all unattributed   | Tier 2: R1/R2 path, R7      | 0/15       | 0/15                 |
-| Playwright + ghost-cursor, headful | 10   | 10/10 (95% CI 72.2-100%)                     | Tier 1: webdriver           | 10/10      | 10/10                |
-| Patchright + ghost-cursor, headful | 10   | 0/10 (95% CI 0-27.8%)                        | missed: labelled human-like | 0/10       | 0/10                 |
+| Generator (class A)                                           | Runs | Flagged (agent-likely or agent-unattributed) | How                         | BotD 2.0.0 | agent-detector 0.3.0 |
+| ------------------------------------------------------------- | ---- | -------------------------------------------- | --------------------------- | ---------- | -------------------- |
+| Playwright, headless                                          | 15   | 15/15 (95% CI 79.6-100%)                     | Tier 1: webdriver, headless | 15/15      | 15/15                |
+| Playwright, headful                                           | 15   | 15/15 (95% CI 79.6-100%)                     | Tier 1: webdriver           | 15/15      | 15/15                |
+| Patchright, headful                                           | 15   | 15/15 (95% CI 79.6-100%), all unattributed   | Tier 2: R1/R2 path, R7      | 0/15       | 0/15                 |
+| Playwright + ghost-cursor, headful                            | 10   | 10/10 (95% CI 72.2-100%)                     | Tier 1: webdriver           | 10/10      | 10/10                |
+| Patchright + ghost-cursor, headful                            | 10   | 0/10 (95% CI 0-27.8%)                        | missed: labelled human-like | 0/10       | 0/10                 |
+| Browser Use 0.13.10, Claude Sonnet 5 (1 headless, 15 headful) | 16   | 16/16 (95% CI 80.6-100%)                     | Tier 1: BU-marker, BU-trio  | 1/16       | 16/16                |
 
-**These are recall numbers on scripted agents only, and say nothing about false positives.** Zero flags in n human sessions bounds the false-positive rate only below about 3/n: 40 sessions give ~7.5%, 5-8 sessions in one cohort ~40-60%, 120 assistive-technology sessions ~2.5%, ~1,000 ~0.3%. No human sessions have been recorded yet, so there is no false-positive bound at all, and the Patchright result rests on behavioural rules whose human false-positive rate is unmeasured. The harness proves the gates work; it does not prove the false-positive rate is low.
+**These are recall numbers on class A agents only, and say nothing about false positives.** Zero flags in n human sessions bounds the false-positive rate only below about 3/n: 40 sessions give ~7.5%, 5-8 sessions in one cohort ~40-60%, 120 assistive-technology sessions ~2.5%, ~1,000 ~0.3%. No human sessions have been recorded yet, so there is no false-positive bound at all, and the Patchright result rests on behavioural rules whose human false-positive rate is unmeasured. The harness proves the gates work; it does not prove the false-positive rate is low.
 
 ## Install
 
