@@ -44,6 +44,10 @@
 
 M1 lands above the plan's 7-9 KB estimate and just under the 10 KB cap. Before cutting anything, the build strips `@__PURE__` annotations (`outputOptions.comments: false`, -50 B), rule-to-signal references live in comments rather than rule data, and evidence strings are short. Measured savings from removing one probe (gzip -9 of the ESM build): #17 WebGL renderer 191 B, #18 geometry 128 B, #21 framework globals 73 B, #20 timezone 30 B. Removing all four would still leave about 9.5 KB, so the plan's 9 KB would also need behavioural signals cut; none are cut in M1.
 
+## Perf budget restated at M1
+
+The plan's absolute "≤50 ms of main thread over a scripted 60 s session at 4× CPU throttle" (from 01-signals §3.12) depends on the machine: the same build measured 77 ms total on an Apple-silicon laptop and 142 ms on a GitHub `ubuntu-latest` runner (median of 3 each, [CI run](https://github.com/jasonm4130/agentlens/actions/runs/37247125510)). About a third of either total is the browser's own per-event cost, which a no-op listener on the same events also pays when it runs first. The captain accepted restating the budget relative to that control: the library's own time must be at most **3.25×** the control floor (measured 2.3× locally and 2.8× on the runner, so about 15% headroom on CI). Init keeps the 10 ms budget on a developer machine (4.3 ms) and reports the runner figure (10.3 ms) without gating it. `pnpm --filter @agentlens/runners-ts perf` applies this, and CI runs it as a non-blocking job that writes to the job summary. Nothing about what the library listens to or measures changed to meet it.
+
 ## Not verified
 
 - Whether tsdown can select the experimental `tsgo` dts generator; not needed while `isolatedDeclarations` is on.
