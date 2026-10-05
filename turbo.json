@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "agentGuidance": false,
+  "cacheDir": ".turbo/cache",
+  "globalDependencies": ["tsconfig.base.json"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tsconfig.json", "tsdown.config.ts", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "size": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "check-exports": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "//#lint:all": {
+      "inputs": [
+        "**/*.{ts,js,mjs,json,md,yml,yaml,html,css}",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/.turbo/**"
+      ],
+      "outputs": []
+    }
+  }
+}

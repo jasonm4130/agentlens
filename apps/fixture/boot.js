@@ -14,7 +14,10 @@ function record(kind, payload) {
 }
 
 function start(createDetector) {
+  // Init cost, read by the perf trace runner.
+  const t0 = performance.now();
   const d = createDetector();
+  window.__alInitMs = performance.now() - t0;
   d.on("verdict", (v) => record("verdict", v));
   d.on("signal", (s) => record("signal", s));
   window.__alSnapshot = () => d.snapshot();
@@ -26,7 +29,9 @@ if (variant === "iife") {
   s.onload = () => start(window.agentlens.createDetector);
   document.head.append(s);
 } else {
-  import("/lib/agentlens.mjs").then((m) => start(m.createDetector));
+  import("/lib/agentlens.mjs")
+    .then((m) => start(m.createDetector))
+    .catch((err) => console.error("agentlens failed to load", err));
 }
 
 // Carry the run id and variant across the three pages.

@@ -1,19 +1,26 @@
-import { attach, attachFlush } from "./collector";
-import { emptyTransient } from "./extractors/transient";
-import { FEATURES_VERSION, emptyFeatures } from "./features";
-import { RULESET, score, type Scored } from "./scorer";
-import { clearState, freshState, loadState, saveState, type SessionState } from "./state";
-import type { Detector, DetectorOptions, Signal, Verdict } from "./types";
+import { attachCollector, listen } from "./collector";
+import { createEmitter } from "./emitter";
+import { browserEnv, type Env } from "./env";
+import { EXTRACTORS, instantiate } from "./extractors";
+import { markerCheck } from "./extractors/markers";
+import { emptyFeatures, emptyProbes, FEATURES_VERSION } from "./features";
+import { PROBES, rendererProbe, runProbes } from "./probes";
+import { RULESET } from "./scorer/ruleset";
+import { score, type Scored } from "./scorer/score";
+import { clearState, loadState, saveState } from "./state";
+import type { Detector, DetectorOptions, Label, Mode, Signal, Verdict } from "./types";
+
+/** Labels that never trigger a `label-change` verdict, so consumers are not spammed early. */
+const QUIET: ReadonlySet<Label> = new Set<Label>(["insufficient-data", "abstain"]);
+/** Continuous activity still re-scores this often, though the debounce never goes quiet. */
+const MAX_WAIT_MS = 10000;
 
 let instance: Detector | null = null;
 
-function clone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v)) as T;
-}
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+const keyOf = (s: Scored): string => `${s.label}/${s.agentClass ?? ""}`;
 
 function inertDetector(): Detector {
-  const state = freshState();
-  const features = emptyFeatures();
   return {
     on: () => () => {},
     snapshot: () => ({
@@ -22,10 +29,10 @@ function inertDetector(): Detector {
       evidence: [{ rule: "ssr", detail: "no window" }],
       cohort: "none",
       mode: "full",
-      features,
+      features: emptyFeatures(),
       featuresVersion: FEATURES_VERSION,
       rulesetVersion: RULESET.version,
-      sessionId: state.sessionId,
+      sessionId: "0".repeat(32),
       seq: 0,
       reason: "snapshot",
     }),
@@ -33,37 +40,64 @@ function inertDetector(): Detector {
   };
 }
 
-/** Returns the page's detector; on the server it returns an inert one that abstains. */
+/**
+ * Returns the page's detector. Calling it again returns the same instance until `destroy`,
+ * so a framework re-render cannot double-count. On the server it returns an inert detector
+ * whose snapshot abstains with rule `ssr`.
+ */
 export function createDetector(options: DetectorOptions = {}): Detector {
   if (typeof window === "undefined" || typeof document === "undefined") return inertDetector();
-  if (instance) return instance;
+  instance ??= createDetectorWith(browserEnv(), options, () => {
+    instance = null;
+  });
+  return instance;
+}
 
+/** The detector over an injected environment; `createDetector` passes the real browser. */
+export function createDetectorWith(
+  env: Env,
+  options: DetectorOptions = {},
+  onDestroy: () => void = () => {},
+): Detector {
   const minActions = options.minActions ?? 3;
   const debounceMs = options.scoreDebounceMs ?? 1000;
-  const gpc =
-    options.respectGPC !== false &&
-    (navigator as { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
-  const mode: "full" | "minimal" = gpc || options.minimal ? "minimal" : "full";
-  const storage: "session" | "memory" = gpc || options.storage === "memory" ? "memory" : "session";
+  const gpc = options.respectGPC !== false && env.nav.globalPrivacyControl === true;
+  const mode: Mode = gpc || options.minimal ? "minimal" : "full";
+  const storage = gpc || options.storage === "memory" ? "memory" : "session";
 
-  const state: SessionState = loadState(storage);
+  const state = loadState(env, storage);
+  // A minimal page scores probes and markers only, and leaves stored behavioural features alone.
   const features = mode === "minimal" ? emptyFeatures() : state.features;
-  const tr = emptyTransient();
-  const verdictCbs = new Set<(v: Verdict) => void>();
-  const signalCbs = new Set<(s: Signal) => void>();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  features.probes = emptyProbes();
+  runProbes(env, PROBES, features.probes);
+  const checkMarkers = markerCheck(env, RULESET, options.extraMarkers ?? []);
+  checkMarkers(features);
+
+  const emitter = createEmitter<{ verdict: Verdict; signal: Signal }>();
+  let timer: unknown;
+  /** First and latest actions not yet scored, and the action the timer was set from. */
+  let firstAt: number | null = null;
+  let lastAt = 0;
+  let armedAt = 0;
   let flushed = false;
 
-  const run = (): Scored => score(features, RULESET, { mode, gpc, minActions });
-  const key = (s: Scored) => `${s.label}/${s.agentClass ?? ""}`;
-  let lastKey = key(run());
+  let glProbed = false;
+  /**
+   * Scores the features. #17 needs a WebGL context (milliseconds of main thread), and only
+   * the class-B profile reads it, so it is probed the first time Tier 2 reaches an agent
+   * label and the session is re-scored; most human sessions never pay for it.
+   */
+  const scoreOpts = { mode, gpc, minActions };
+  const run = (): Scored => {
+    const s = score(features, RULESET, scoreOpts);
+    if (glProbed || s.tells.length > 0 || !s.label.startsWith("agent")) return s;
+    glProbed = true;
+    runProbes(env, [rendererProbe], features.probes);
+    return score(features, RULESET, scoreOpts);
+  };
 
-  const build = (s: Scored, reason: Verdict["reason"]): Verdict => ({
-    label: s.label,
-    ...(s.agentClass ? { agentClass: s.agentClass } : {}),
-    confidence: s.confidence,
-    evidence: s.evidence,
-    cohort: s.cohort,
+  const build = ({ actions: _a, tells: _t, ...s }: Scored, reason: Verdict["reason"]): Verdict => ({
+    ...s,
     mode,
     features: clone(features),
     featuresVersion: FEATURES_VERSION,
@@ -73,56 +107,104 @@ export function createDetector(options: DetectorOptions = {}): Detector {
     reason,
   });
 
-  const emit = (s: Scored, reason: "flush" | "label-change") => {
+  /** Fires `'signal'` once per Tier 1 rule per session. */
+  const announce = (s: Scored): void => {
+    for (const t of s.tells) {
+      if (state.signalled.includes(t.rule)) continue;
+      state.signalled.push(t.rule);
+      const sig: Signal = { rule: t.rule, detail: t.detail, sessionId: state.sessionId };
+      if (t.agentClass) sig.agentClass = t.agentClass;
+      emitter.emit("signal", sig);
+    }
+  };
+
+  const emitVerdict = (s: Scored, reason: "flush" | "label-change"): void => {
     state.seq++;
+    state.last = keyOf(s);
     const v = build(s, reason);
-    saveState(state, storage);
-    for (const cb of verdictCbs) cb(v);
+    saveState(env, state, storage);
+    emitter.emit("verdict", v);
   };
 
-  const flush = () => {
-    if (flushed) {
-      saveState(state, storage);
-      return;
-    }
-    flushed = true;
-    emit(run(), "flush");
-  };
-
-  const rescore = () => {
+  const cancel = (): void => {
+    if (timer !== undefined) env.clearTimeout(timer);
     timer = undefined;
-    const s = run();
-    if (key(s) !== lastKey) {
-      lastKey = key(s);
-      emit(s, "label-change");
-    }
+    firstAt = null;
   };
 
-  const detachFlush = attachFlush(window, flush);
+  const rescore = (): void => {
+    cancel();
+    const s = run();
+    announce(s);
+    if (!QUIET.has(s.label) && keyOf(s) !== state.last) emitVerdict(s, "label-change");
+  };
+
+  /**
+   * Debounce without a timer per action: when the timer fires, any action since it was set
+   * pushes it back by the difference, so scoring waits for `debounceMs` of quiet.
+   */
+  const quiet = (): void => {
+    timer = undefined;
+    if (lastAt <= armedAt) return rescore();
+    timer = env.setTimeout(quiet, lastAt - armedAt);
+    armedAt = lastAt;
+  };
+
+  const flush = (): void => {
+    checkMarkers(features);
+    if (flushed) return saveState(env, state, storage);
+    flushed = true;
+    cancel();
+    const s = run();
+    announce(s);
+    emitVerdict(s, "flush");
+  };
+
+  const detachFlush = listen(env, [
+    ["visibilitychange", () => env.visibility() === "hidden" && flush()],
+    ["pagehide", flush],
+  ]);
   const detachInput =
     mode === "minimal"
       ? () => {}
-      : attach(window, features, tr, options.ignore ?? [], () => {
-          if (timer === undefined) timer = setTimeout(rescore, debounceMs);
-        });
+      : attachCollector(
+          env,
+          features,
+          instantiate(EXTRACTORS, { env, checkMarkers }),
+          options.ignore ?? [],
+          {
+            onAction: (t) => {
+              lastAt = t;
+              firstAt ??= t;
+              if (t - firstAt >= MAX_WAIT_MS) return rescore();
+              if (timer !== undefined) return;
+              armedAt = t;
+              timer = env.setTimeout(quiet, debounceMs);
+            },
+            onTell: rescore,
+          },
+        );
 
-  const detector: Detector = {
+  // A first score once the caller has subscribed, so init-time tells reach `'signal'` listeners.
+  let initTimer: unknown = env.setTimeout(() => {
+    initTimer = undefined;
+    rescore();
+  }, 0);
+
+  return {
     on(event: "verdict" | "signal", cb: never): () => void {
-      const set = (event === "verdict" ? verdictCbs : signalCbs) as Set<unknown>;
-      set.add(cb);
-      return () => void set.delete(cb);
+      return emitter.on(event, cb);
     },
     snapshot: () => build(run(), "snapshot"),
     destroy(opts) {
       detachFlush();
       detachInput();
-      if (timer !== undefined) clearTimeout(timer);
-      verdictCbs.clear();
-      signalCbs.clear();
-      if (opts?.clear) clearState();
-      instance = null;
+      cancel();
+      if (initTimer !== undefined) env.clearTimeout(initTimer);
+      emitter.clear();
+      if (opts?.clear) clearState(env);
+      else saveState(env, state, storage);
+      onDestroy();
     },
   };
-  instance = detector;
-  return detector;
 }

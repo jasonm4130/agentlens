@@ -1,26 +1,34 @@
-import { defineConfig } from "tsdown";
+import { defineConfig, type UserConfig } from "tsdown";
 
-const entry = { agentlens: "src/index.ts" };
+const shared = {
+  platform: "browser",
+  target: "es2020",
+  clean: false,
+  minify: true,
+  // Pure annotations only help a downstream bundler, and these files are vendored as is.
+  outputOptions: { comments: false },
+} as const;
 
-export default defineConfig([
+// One build per entry, so agentlens.mjs and scorer.mjs are each a single self-contained
+// file a consumer can vendor, with no shared chunk.
+const esm = (name: string, entry: string): UserConfig => ({
+  ...shared,
+  entry: { [name]: entry },
+  format: "esm",
+  dts: true,
+  outExtensions: () => ({ js: ".mjs", dts: ".d.ts" }),
+});
+
+const config: UserConfig[] = defineConfig([
+  esm("agentlens", "src/index.ts"),
+  esm("scorer", "src/scorer/index.ts"),
   {
-    entry,
-    format: "esm",
-    platform: "browser",
-    target: "es2020",
-    dts: true,
-    clean: false,
-    minify: true,
-    outExtensions: () => ({ js: ".mjs", dts: ".d.ts" }),
-  },
-  {
-    entry,
+    ...shared,
+    entry: { agentlens: "src/index.ts" },
     format: "iife",
     globalName: "agentlens",
-    platform: "browser",
-    target: "es2020",
     dts: false,
-    clean: false,
-    minify: true,
   },
 ]);
+
+export default config;

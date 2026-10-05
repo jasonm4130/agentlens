@@ -1,12 +1,16 @@
-import { addMoment, addToHist, bump, WHEEL_DELTA_EDGES, WHEEL_DT_EDGES } from "../features";
-import type { Ev, Features } from "../types";
+import { addMoment, addToHist, bump, type Features } from "../features";
+import type { Ev, Extractor, Transient } from "./extractor";
 import { inFindWindow } from "./keyboard";
-import type { Transient } from "./transient";
 
 const GESTURE_GAP_MS = 300;
 const SAME_DELTA_WINDOW_MS = 500;
 const NO_INPUT_MS = 500;
 const SCROLL_BURST_GAP_MS = 1000;
+/** Scroll events closer than this belong to one stream (smooth or momentum scrolling). */
+const STREAM_MS = 150;
+/** An action this soon after a no-input scroll acts on what the scroll revealed. */
+const REVEAL_MS = 1000;
+const SMALL_DELTA_PX = 4;
 const LINE_PX = 16;
 
 /** Normalises a wheel delta to pixels, so a 3-line tick and a 48 px tick compare equal. */
@@ -17,53 +21,74 @@ export function normalisedDelta(e: Ev, pageHeight: number): number {
   return d;
 }
 
-/**
- * #10. Folds wheel ticks (delta bucket, inter-tick dt, repeated identical deltas) and
- * counts scroll bursts with no wheel, touch, key or pointer input in the previous 500 ms
- * and no mouse button held (scrollbar drag, middle-button autoscroll).
- * Returns true when a new wheel gesture or no-input scroll burst began.
- */
-export function foldScroll(f: Features, tr: Transient, e: Ev): boolean {
+function noInputScroll(f: Features, tr: Transient, t: number): boolean {
   const c = f.counts;
-  const t = e.timeStamp;
+  // Touch momentum scrolling outlives the last touch event, so touch cohorts abstain.
+  if (c.touchEvents > 0) return false;
+  // A stream started by input (a keypress, a smooth scroll after a click) stays input-driven.
+  if (t - tr.lastScrollAt < STREAM_MS) return tr.scrollNoInput;
+  if (tr.heldButton !== null || t - tr.lastInputAt <= NO_INPUT_MS) return false;
+  return t >= tr.suppressScrollUntil && !inFindWindow(tr, t);
+}
 
-  if (e.type === "wheel") {
-    if (!e.isTrusted) return false;
-    const delta = normalisedDelta(e, tr.pageHeight);
-    const raw = e.deltaY ?? 0;
-    bump(c, "wheelTicks");
-    if (!Number.isInteger(raw)) bump(c, "wheelFractional");
-    f.hist.wheelDelta = addToHist(f.hist.wheelDelta, delta, WHEEL_DELTA_EDGES);
-    let began = false;
-    if (tr.lastWheelAt === null || t - tr.lastWheelAt > GESTURE_GAP_MS) {
-      bump(c, "wheelGestures");
-      began = true;
-    } else {
-      const dt = t - tr.lastWheelAt;
-      f.hist.wheelDt = addToHist(f.hist.wheelDt, dt, WHEEL_DT_EDGES);
-      f.wheelDt = addMoment(f.wheelDt, dt);
-      if (tr.lastWheelDelta === delta && dt < SAME_DELTA_WINDOW_MS) bump(c, "wheelSameDelta");
+/**
+ * #10. Folds wheel ticks (delta bucket, inter-tick dt, repeated identical deltas, trackpad
+ * hints) and counts scroll bursts with no wheel, touch, key or pointer input in the previous
+ * 500 ms and no mouse button held (scrollbar drag, middle-button autoscroll), plus clicks
+ * that land within a second of such a burst. hashchange and focus-driven scrolls abstain, and
+ * only document scrolls count: element scrolls (carousels, chat logs) are ignored.
+ */
+export const scroll: Extractor = {
+  events: ["wheel", "scroll", "click", "hashchange", "focusin"],
+  fold(f, tr, e, sink) {
+    const c = f.counts;
+    const t = e.timeStamp;
+
+    switch (e.type) {
+      case "hashchange":
+      case "focusin":
+        tr.suppressScrollUntil = t + NO_INPUT_MS;
+        return;
+      case "click":
+        if (!tr.scrollActed && t - tr.lastNoInputScrollAt <= REVEAL_MS) {
+          tr.scrollActed = true;
+          bump(c, "scrollThenAct");
+        }
+        return;
+      case "wheel": {
+        if (!e.isTrusted) return;
+        const delta = normalisedDelta(e, tr.pageHeight);
+        bump(c, "wheelTicks");
+        if (!Number.isInteger(e.deltaY ?? 0)) bump(c, "wheelFractional");
+        if (delta > 0 && delta < SMALL_DELTA_PX) bump(c, "wheelSmall");
+        addToHist(f, "wheelDelta", delta);
+        if (tr.lastWheelAt === null || t - tr.lastWheelAt > GESTURE_GAP_MS) {
+          bump(c, "wheelGestures");
+          sink.action(t);
+        } else {
+          const dt = t - tr.lastWheelAt;
+          addToHist(f, "wheelDt", dt);
+          addMoment(f, "wheelDt", dt);
+          if (tr.lastWheelDelta === delta && dt < SAME_DELTA_WINDOW_MS) bump(c, "wheelSameDelta");
+        }
+        tr.lastWheelAt = t;
+        tr.lastWheelDelta = delta;
+        tr.lastInputAt = t;
+        return;
+      }
+      case "scroll": {
+        if (e.target?.closest) return;
+        const none = noInputScroll(f, tr, t);
+        tr.lastScrollAt = t;
+        tr.scrollNoInput = none;
+        if (!none) return;
+        const newBurst = t - tr.lastNoInputScrollAt > SCROLL_BURST_GAP_MS;
+        tr.lastNoInputScrollAt = t;
+        if (!newBurst) return;
+        tr.scrollActed = false;
+        bump(c, "noInputScrolls");
+        sink.action(t);
+      }
     }
-    tr.lastWheelAt = t;
-    tr.lastWheelDelta = delta;
-    tr.lastInputAt = t;
-    return began;
-  }
-
-  if (e.type === "scroll") {
-    // Touch momentum scrolling outlives the last touch event, so touch cohorts abstain.
-    if (c.touchEvents > 0) return false;
-    if (tr.heldButton !== null || t - tr.lastInputAt <= NO_INPUT_MS) return false;
-    if (t < tr.suppressScrollUntil || inFindWindow(tr, t)) return false;
-    const newBurst = t - tr.lastNoInputScrollAt > SCROLL_BURST_GAP_MS;
-    tr.lastNoInputScrollAt = t;
-    if (newBurst) bump(c, "noInputScrolls");
-    return newBurst;
-  }
-  return false;
-}
-
-/** hashchange and focus-driven scrolls are not agent evidence. */
-export function suppressScrolls(tr: Transient, t: number): void {
-  tr.suppressScrollUntil = t + NO_INPUT_MS;
-}
+  },
+};

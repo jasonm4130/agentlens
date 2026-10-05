@@ -1,149 +1,417 @@
-// @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createDetector } from "../src";
+import { describe, expect, it } from "vitest";
+import { createDetectorWith } from "../src/detector";
+import type { Ev } from "../src/extractors/extractor";
 import { emptyFeatures } from "../src/features";
-import { clearState, type SessionState } from "../src/state";
-import type { Verdict } from "../src/types";
+import type { SessionState } from "../src/state";
+import type { Signal, Verdict } from "../src/types";
+import { el, ev, fakeEnv, mouseClick, typeText, wheelTicks, type FakeEnv } from "./helpers";
 
-afterEach(() => clearState());
-
-function trusted<E extends Event>(e: E): E {
-  Object.defineProperty(e, "isTrusted", { value: true });
-  return e;
+function record(d: ReturnType<typeof createDetectorWith>) {
+  const verdicts: Verdict[] = [];
+  const signals: Signal[] = [];
+  d.on("verdict", (v) => verdicts.push(v));
+  d.on("signal", (s) => signals.push(s));
+  return { verdicts, signals };
 }
 
-describe("createDetector in a browser-like environment", () => {
-  it("returns a singleton and starts at insufficient-data", () => {
-    const d = createDetector();
-    expect(createDetector()).toBe(d);
-    const v = d.snapshot();
-    expect(v.label).toBe("insufficient-data");
-    expect(v.reason).toBe("snapshot");
-    expect(v.cohort).toBe("none");
-    expect(v.sessionId).toMatch(/^[0-9a-f]{32}$/);
+const hide = (env: FakeEnv, t = 99999) => {
+  env.setVisibility("hidden");
+  env.fire(ev({ type: "visibilitychange", timeStamp: t }));
+};
+const pagehide = (env: FakeEnv) => env.fire(ev({ type: "pagehide", timeStamp: 0 }));
+const stored = (env: FakeEnv) => JSON.parse(env.store.get("al:v1") ?? "null") as SessionState;
+
+/** Warped agent clicks on targets of two sizes, 3 s apart. */
+const agentClicks = (n: number): Ev[] =>
+  Array.from({ length: n }, (_, i) => {
+    const target = el({ rect: i % 2 ? [0, 0, 100, 40] : [200, 200, 300, 60] });
+    return mouseClick(1000 + i * 3000, i % 2 ? 50 : 350, i % 2 ? 20 : 230, { dwell: 2, target });
+  }).flat();
+
+describe("verdict semantics", () => {
+  it("flushes once per page on pagehide or hidden, with seq increasing", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    pagehide(env);
+    hide(env);
+    pagehide(env);
+    expect(verdicts.map((v) => [v.reason, v.seq])).toEqual([["flush", 1]]);
+    expect(verdicts[0]?.label).toBe("insufficient-data");
     d.destroy();
-  });
-
-  it("ignores untrusted (script-dispatched) input", () => {
-    const d = createDetector();
-    for (let i = 0; i < 20; i++) window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
-    expect(d.snapshot().features.counts.keys).toBe(0);
-    d.destroy();
-  });
-
-  it("persists the session across pages and starts fresh after destroy({clear:true})", () => {
-    const first = createDetector();
-    const id = first.snapshot().sessionId;
-    first.on("verdict", () => {});
-    window.dispatchEvent(new Event("pagehide"));
-    first.destroy();
-    const second = createDetector();
-    expect(second.snapshot().sessionId).toBe(id);
-    second.destroy({ clear: true });
-    const third = createDetector();
-    expect(third.snapshot().sessionId).not.toBe(id);
-    third.destroy();
-  });
-
-  it("flushes once per page on pagehide and increments seq", () => {
-    const d = createDetector();
-    const seen: number[] = [];
-    d.on("verdict", (v) => seen.push(v.seq));
-    window.dispatchEvent(new Event("pagehide"));
-    window.dispatchEvent(new Event("pagehide"));
-    expect(seen).toEqual([1]);
-    d.destroy({ clear: true });
   });
 
   it("saves features gathered after the first flush when the page hides again", () => {
-    const first = createDetector();
-    window.dispatchEvent(new Event("pagehide"));
-    for (let i = 0; i < 3; i++)
-      window.dispatchEvent(trusted(new KeyboardEvent("keydown", { key: "a" })));
-    window.dispatchEvent(new Event("pagehide"));
-    first.destroy();
-    const second = createDetector();
-    expect(second.snapshot().features.counts.keys).toBe(3);
-    second.destroy({ clear: true });
-  });
-
-  it("keeps the built-in exclusions when a consumer ignore selector is invalid", () => {
-    const pw = document.createElement("input");
-    pw.type = "password";
-    document.body.append(pw);
-    const d = createDetector({ ignore: ["[data-foo"] });
-    pw.dispatchEvent(trusted(new KeyboardEvent("keydown", { key: "a", bubbles: true })));
-    expect(d.snapshot().features.counts.keys).toBe(0);
-    d.destroy({ clear: true });
-    pw.remove();
-  });
-
-  it("in minimal mode attaches only the flush triggers and emits one abstain verdict", () => {
-    const spy = vi.spyOn(window, "addEventListener");
-    const d = createDetector({ minimal: true });
-    const added = spy.mock.calls.map((c) => c[0]);
-    spy.mockRestore();
-    expect(added.sort()).toEqual(["pagehide", "visibilitychange"]);
-
-    const seen: Verdict[] = [];
-    d.on("verdict", (v) => seen.push(v));
-    window.dispatchEvent(new Event("pagehide"));
-    window.dispatchEvent(new Event("pagehide"));
-    expect(seen).toHaveLength(1);
-    const v = seen[0] as Verdict;
-    expect(v.reason).toBe("flush");
-    expect(v.mode).toBe("minimal");
-    expect(v.label).toBe("abstain");
-    expect(v.evidence[0]?.rule).toBe("minimal");
-    expect(v.features).toEqual(emptyFeatures());
-    d.destroy({ clear: true });
-  });
-
-  it("keeps stored features and advances seq across a minimal-mode page", () => {
-    const seqs: number[] = [];
-    const a = createDetector();
-    a.on("verdict", (v) => seqs.push(v.seq));
-    for (let i = 0; i < 3; i++)
-      window.dispatchEvent(trusted(new KeyboardEvent("keydown", { key: "a" })));
-    window.dispatchEvent(new Event("pagehide"));
+    const env = fakeEnv();
+    const a = createDetectorWith(env);
+    pagehide(env);
+    for (let i = 0; i < 3; i++) env.fire(ev({ type: "keydown", timeStamp: i * 100, key: "a" }));
+    pagehide(env);
     a.destroy();
-    const stored = JSON.parse(sessionStorage.getItem("al:v1") ?? "null") as SessionState;
+    const b = createDetectorWith(env);
+    expect(b.snapshot().features.counts.keys).toBe(3);
+    pagehide(env);
+    expect(stored(env).pageCount).toBe(2);
+    b.destroy();
+  });
 
-    const b = createDetector({ minimal: true });
+  it("destroy saves features folded since the last save, so a remount keeps them", () => {
+    const env = fakeEnv();
+    const a = createDetectorWith(env);
+    for (let i = 0; i < 3; i++) env.fire(ev({ type: "keydown", timeStamp: i * 100, key: "a" }));
+    a.destroy();
+    const b = createDetectorWith(env);
+    expect(b.snapshot().features.counts.keys).toBe(3);
+    b.destroy();
+  });
+
+  it("emits label-change after the debounce when the label changes, never for quiet labels", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    env.runTimers();
+    expect(verdicts).toEqual([]);
+    for (const e of agentClicks(2)) env.fire(e);
+    env.runTimers();
+    expect(verdicts).toEqual([]); // insufficient-data is quiet
+    for (const e of agentClicks(6)) env.fire({ ...e, timeStamp: e.timeStamp + 20000 });
+    expect(env.pendingTimers()).toBe(1);
+    env.runTimers();
+    expect(verdicts.map((v) => [v.reason, v.label])).toEqual([
+      ["label-change", "agent-unattributed"],
+    ]);
+    env.runTimers();
+    pagehide(env);
+    expect(verdicts.map((v) => v.reason)).toEqual(["label-change", "flush"]);
+    expect(verdicts.map((v) => v.seq)).toEqual([1, 2]);
+    d.destroy();
+  });
+
+  it("does not re-announce an unchanged label on the next page", () => {
+    const env = fakeEnv({ nav: { webdriver: true } });
+    const a = createDetectorWith(env);
+    const first = record(a);
+    env.runTimers();
+    pagehide(env);
+    a.destroy();
+    const b = createDetectorWith(env);
+    const second = record(b);
+    env.runTimers();
+    expect(first.verdicts.map((v) => v.reason)).toEqual(["label-change", "flush"]);
+    expect(second.verdicts).toEqual([]);
+    expect(second.signals).toEqual([]);
+    b.destroy();
+  });
+
+  it("returns features as a copy and snapshot emits nothing", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    const v = d.snapshot();
+    v.features.counts.keys = 999;
+    expect(d.snapshot().features.counts.keys).toBe(0);
+    expect(v.reason).toBe("snapshot");
+    expect(verdicts).toEqual([]);
+    d.destroy();
+  });
+
+  it("isolates a throwing consumer listener", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    d.on("verdict", () => {
+      throw new Error("consumer bug");
+    });
+    const { verdicts } = record(d);
+    expect(() => pagehide(env)).not.toThrow();
+    expect(verdicts).toHaveLength(1);
+    d.destroy();
+  });
+});
+
+describe("signal semantics", () => {
+  it("fires each Tier 1 rule once per session, after the caller subscribes", () => {
+    const env = fakeEnv({ nav: { webdriver: true }, globals: ["__pwInitScripts"] });
+    const d = createDetectorWith(env);
+    const { signals } = record(d);
+    expect(signals).toEqual([]);
+    env.runTimers();
+    expect(signals.map((s) => [s.rule, s.agentClass])).toEqual([
+      ["webdriver", "A"],
+      ["fw-globals", "A"],
+    ]);
+    expect(signals[0]?.sessionId).toBe(d.snapshot().sessionId);
+    pagehide(env);
+    expect(signals).toHaveLength(2);
+    d.destroy();
+  });
+
+  it("scores a hard tell immediately, without waiting for the debounce", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    const { signals, verdicts } = record(d);
+    const a = el({ value: "ada@example.com" });
+    env.fire({
+      type: "input",
+      timeStamp: 10,
+      isTrusted: false,
+      target: a,
+      data: "ada@example.com",
+    });
+    env.fire({ type: "change", timeStamp: 11, isTrusted: false, target: a });
+    env.fire({ type: "blur", timeStamp: 12, isTrusted: false, target: a });
+    expect(signals.map((s) => s.rule)).toEqual(["BU-trio"]);
+    expect(verdicts.map((v) => [v.label, v.agentClass, v.confidence])).toEqual([
+      ["agent-likely", "A", "certain"],
+    ]);
+    d.destroy();
+  });
+
+  it("re-checks markers on mouse pointerdown and before flush", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    const { signals } = record(d);
+    env.runTimers();
+    env.present.add("#claude-agent-stop-container");
+    env.fire(
+      ev({ type: "pointerdown", timeStamp: 5, pointerType: "mouse", button: 0, target: el() }),
+    );
+    expect(signals.map((s) => [s.rule, s.agentClass])).toEqual([["C-marker", "C"]]);
+    env.present.add("[data-browser-use-highlight]");
+    pagehide(env);
+    expect(signals.map((s) => s.rule)).toEqual(["C-marker", "BU-marker"]);
+    d.destroy();
+  });
+
+  it("reports consumer extraMarkers as custom-marker with no class and drops invalid ones", () => {
+    const env = fakeEnv({ present: ["#my-agent-banner"] });
+    const d = createDetectorWith(env, { extraMarkers: ["#my-agent-banner", "[broken"] });
+    const { signals } = record(d);
+    env.runTimers();
+    expect(signals).toEqual([
+      { rule: "custom-marker", detail: "consumer marker", sessionId: expect.any(String) },
+    ]);
+    const v = d.snapshot();
+    expect(v).toMatchObject({ label: "agent-likely", confidence: "certain" });
+    expect(v.agentClass).toBeUndefined();
+    d.destroy();
+  });
+});
+
+describe("modes and storage", () => {
+  it("in minimal mode attaches only the flush triggers and still runs probes and markers", () => {
+    const env = fakeEnv({ present: ["#claude-agent-stop-container"] });
+    const d = createDetectorWith(env, { minimal: true });
+    expect(env.listenerCount()).toBe(2);
+    const { verdicts, signals } = record(d);
+    env.runTimers();
+    pagehide(env);
+    pagehide(env);
+    expect(signals.map((s) => s.rule)).toEqual(["C-marker"]);
+    const v = verdicts[verdicts.length - 1];
+    expect(v).toMatchObject({ reason: "flush", mode: "minimal", label: "agent-likely" });
+    expect(v?.features.counts).toEqual(emptyFeatures().counts);
+    expect(v?.features.probes.desktopUA).toBe(true);
+    d.destroy();
+  });
+
+  it("minimal without a tell abstains and keeps stored behavioural features across pages", () => {
+    const env = fakeEnv();
+    const seqs: number[] = [];
+    const a = createDetectorWith(env);
+    a.on("verdict", (v) => seqs.push(v.seq));
+    for (let i = 0; i < 3; i++) env.fire(ev({ type: "keydown", timeStamp: i * 100, key: "a" }));
+    pagehide(env);
+    a.destroy();
+    const before = stored(env);
+
+    const b = createDetectorWith(env, { minimal: true });
     const seen: Verdict[] = [];
     b.on("verdict", (v) => {
       seen.push(v);
       seqs.push(v.seq);
     });
-    window.dispatchEvent(new Event("pagehide"));
-    window.dispatchEvent(new Event("pagehide"));
+    env.runTimers();
+    pagehide(env);
     b.destroy();
-    expect(seen[0]?.features).toEqual(emptyFeatures());
-    const afterB = JSON.parse(sessionStorage.getItem("al:v1") ?? "null") as SessionState;
-    expect(afterB.features).toEqual(stored.features);
-    expect(afterB.sessionId).toBe(stored.sessionId);
-    expect(afterB.seq).toBe(stored.seq + 1);
-    expect(afterB.pageCount).toBe(stored.pageCount + 1);
+    expect(seen.map((v) => [v.label, v.evidence[0]?.rule])).toEqual([["abstain", "minimal"]]);
+    const after = stored(env);
+    expect(after.features).toEqual(before.features);
+    expect(after.seq).toBe(before.seq + 1);
+    expect(after.pageCount).toBe(before.pageCount + 1);
 
-    const c = createDetector();
+    const c = createDetectorWith(env);
     c.on("verdict", (v) => seqs.push(v.seq));
     expect(c.snapshot().features.counts.keys).toBe(3);
-    window.dispatchEvent(new Event("pagehide"));
-    c.destroy({ clear: true });
-    expect(seqs).toHaveLength(3);
-    expect(seqs[0]! < seqs[1]! && seqs[1]! < seqs[2]!).toBe(true);
+    pagehide(env);
+    c.destroy();
+    expect(seqs).toEqual([1, 2, 3]);
   });
 
-  it("uses evidence rule gpc when Global Privacy Control forces minimal mode", () => {
-    Object.defineProperty(navigator, "globalPrivacyControl", { value: true, configurable: true });
-    try {
-      const d = createDetector();
-      const v = d.snapshot();
-      expect(v.mode).toBe("minimal");
-      expect(v.evidence[0]?.rule).toBe("gpc");
-      d.destroy();
-    } finally {
-      Reflect.deleteProperty(navigator, "globalPrivacyControl");
+  it("Global Privacy Control forces minimal mode, rule gpc and memory-only storage", () => {
+    const env = fakeEnv({ nav: { globalPrivacyControl: true } });
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    expect(d.snapshot()).toMatchObject({ mode: "minimal", evidence: [{ rule: "gpc" }] });
+    pagehide(env);
+    expect(verdicts).toHaveLength(1);
+    expect(env.store.size).toBe(0);
+    d.destroy();
+  });
+
+  it("respectGPC: false keeps full mode under GPC", () => {
+    const env = fakeEnv({ nav: { globalPrivacyControl: true } });
+    const d = createDetectorWith(env, { respectGPC: false });
+    expect(d.snapshot().mode).toBe("full");
+    d.destroy();
+  });
+
+  it("memory storage makes each page its own session and writes nothing", () => {
+    const env = fakeEnv();
+    const a = createDetectorWith(env, { storage: "memory" });
+    const id = a.snapshot().sessionId;
+    pagehide(env);
+    a.destroy();
+    const b = createDetectorWith(env, { storage: "memory" });
+    expect(b.snapshot().sessionId).not.toBe(id);
+    expect(env.store.size).toBe(0);
+    b.destroy();
+  });
+
+  it("falls back to memory silently when storage is missing or throws", () => {
+    for (const storage of ["none", "throws"] as const) {
+      const env = fakeEnv({ storage });
+      const d = createDetectorWith(env);
+      expect(() => pagehide(env)).not.toThrow();
+      expect(d.snapshot().sessionId).toMatch(/^[0-9a-f]{32}$/);
+      d.destroy({ clear: true });
     }
+  });
+
+  it("rejects tampered stored state and starts a new session", () => {
+    const env = fakeEnv();
+    const a = createDetectorWith(env);
+    pagehide(env);
+    a.destroy();
+    const s = stored(env);
+    const id = s.sessionId;
+    (s.features.counts as Record<string, unknown>).keys = "Ada Lovelace";
+    env.store.set("al:v1", JSON.stringify(s));
+    const b = createDetectorWith(env);
+    expect(b.snapshot().sessionId).not.toBe(id);
+    b.destroy();
+  });
+
+  it("keeps the stored session within 4 KB after a busy session", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    for (const e of agentClicks(40)) env.fire(e);
+    for (let i = 0; i < 400; i++)
+      env.fire(ev({ type: "keydown", timeStamp: 200000 + i * 97, key: "a", code: "KeyA" }));
+    for (let i = 0; i < 100; i++)
+      env.fire(ev({ type: "wheel", timeStamp: 300000 + i * 37, deltaY: 40 + (i % 7) }));
+    pagehide(env);
+    expect(env.store.get("al:v1")?.length).toBeLessThanOrEqual(4096);
+    d.destroy();
+  });
+
+  it("destroy removes every listener and timer, and clear drops storage", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env);
+    for (const e of agentClicks(1)) env.fire(e);
+    pagehide(env);
+    expect(env.listenerCount()).toBeGreaterThan(10);
+    d.destroy({ clear: true });
+    expect(env.listenerCount()).toBe(0);
+    expect(env.pendingTimers()).toBe(0);
+    expect(env.store.size).toBe(0);
+  });
+});
+
+describe("ignore selectors", () => {
+  it("skips events inside ignored subtrees, keeping built-ins when a consumer selector is invalid", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env, { ignore: ["[data-foo", ".private"] });
+    const inside = (sel: string) => el({ closest: (s: string) => (s.includes(sel) ? {} : null) });
+    env.fire(
+      ev({ type: "keydown", timeStamp: 1, key: "a", target: inside('input[type="password"]') }),
+    );
+    env.fire(ev({ type: "keydown", timeStamp: 2, key: "a", target: inside(".private") }));
+    env.fire(ev({ type: "keydown", timeStamp: 3, key: "a", target: el() }));
+    expect(d.snapshot().features.counts.keys).toBe(1);
+    d.destroy();
+  });
+});
+
+describe("lazy #17 WebGL probe", () => {
+  it("is not probed for a human-like session", () => {
+    let probed = 0;
+    const env = fakeEnv();
+    env.renderer = () => {
+      probed++;
+      return "Google SwiftShader";
+    };
+    const d = createDetectorWith(env);
+    env.runTimers();
+    for (const e of typeText(1000, 30, (i) => 90 + ((i * 37) % 150))) env.fire(e);
+    env.runTimers();
+    expect(d.snapshot().label).toBe("human-like");
+    expect(d.snapshot().features.probes.renderer).toBeNull();
+    expect(probed).toBe(0);
+    d.destroy();
+  });
+
+  it("is probed once Tier 2 reaches an agent label, and can attribute class B", () => {
+    let probed = 0;
+    const env = fakeEnv();
+    env.renderer = () => {
+      probed++;
+      return "Google SwiftShader";
+    };
+    const d = createDetectorWith(env);
+    const { verdicts } = record(d);
+    const field = el({ value: "" });
+    for (const e of [
+      ...agentClicks(3),
+      ...typeText(20000, 20, () => 12, 2, field),
+      ...wheelTicks(
+        30000,
+        10,
+        () => 50,
+        () => 100,
+      ),
+    ])
+      env.fire(e);
+    env.runTimers();
+    expect(verdicts[verdicts.length - 1]).toMatchObject({ label: "agent-likely", agentClass: "B" });
+    expect(verdicts[verdicts.length - 1]?.features.probes.renderer).toBe("swiftshader");
+    d.snapshot();
+    expect(probed).toBe(1);
+    d.destroy();
+  });
+});
+
+describe("re-score debounce", () => {
+  it("waits for quiet input, then scores once", () => {
+    const env = fakeEnv();
+    const d = createDetectorWith(env, { scoreDebounceMs: 1000 });
+    env.runTimers();
+    for (let i = 0; i < 5; i++)
+      env.fire(ev({ type: "keydown", timeStamp: 100 + i * 200, key: "a", code: "KeyA" }));
+    expect(env.pendingTimers()).toBe(1);
+    env.runTimers();
+    expect(env.pendingTimers()).toBe(0);
+    d.destroy();
+  });
+
+  it("scores during continuous input at least every 10 s", () => {
+    const env = fakeEnv({ nav: {} });
+    const d = createDetectorWith(env, { scoreDebounceMs: 1000 });
+    const { verdicts } = record(d);
+    env.runTimers();
+    // Agent-paced clicks every 300 ms never leave a quiet second, but the label still lands.
+    for (const e of agentClicks(40).map((e) => ({ ...e, timeStamp: e.timeStamp / 10 })))
+      env.fire(e);
+    expect(verdicts.map((v) => v.reason)).toContain("label-change");
+    d.destroy();
   });
 });

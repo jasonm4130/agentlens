@@ -11,9 +11,11 @@
   },
   "scripts": {
     "start": "tsx src/cli.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "tsx": "^4.20.0"
+    "tsx": "catalog:",
+    "vitest": "catalog:"
   }
 }
