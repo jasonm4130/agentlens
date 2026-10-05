@@ -43,7 +43,7 @@ There is no npm package. Each tagged [GitHub Release](https://github.com/jasonm4
 | `scorer.mjs`                    | Pure scorer for Node or your server: `score`, `RULESET`, `validateFeatures` |
 | `agentlens.d.ts`, `scorer.d.ts` | Types                                                                       |
 
-Each file is self-contained with no dependencies; ES2020 evergreen browsers. Sizes at M1 (gzip): `agentlens.mjs` 9.95 kB, `agentlens.iife.js` 9.98 kB, `scorer.mjs` 3.94 kB.
+Each file is self-contained with no dependencies; ES2020 evergreen browsers. Sizes (gzip): `agentlens.mjs` 9.95 kB, `agentlens.iife.js` 9.98 kB, `scorer.mjs` 3.94 kB.
 
 ## Use
 
