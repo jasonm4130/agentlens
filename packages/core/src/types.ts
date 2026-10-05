@@ -72,6 +72,6 @@ export interface Detector {
   on(event: "signal", cb: (s: Signal) => void): () => void;
   /** Score now without emitting. */
   snapshot(): Verdict;
-  /** Detach listeners and timers. Session storage is kept unless `clear` is set. */
+  /** Detach listeners and timers. Saves the session state first, or erases it if `clear` is set. */
   destroy(options?: { clear?: boolean }): void;
 }
