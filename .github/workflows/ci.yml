@@ -33,6 +33,29 @@ jobs:
           name: dist
           path: packages/core/dist/
 
+  # Perf trace (architecture 4.4): reported, not gated. Throttled traces are noisy, so the job
+  # never fails the workflow; the numbers land in the job summary.
+  perf:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @agentlens/runners-ts exec playwright install --with-deps --only-shell chromium
+      - run: pnpm exec turbo run build --filter=@agentlens/core
+      - name: perf (60 s session, 4x CPU throttle, median of 3)
+        run: |
+          set -o pipefail
+          pnpm --filter @agentlens/runners-ts perf --runs=3 --breakdown 2>&1 | tee perf.txt
+      - if: always()
+        run: |
+          { echo '```'; grep -v '^$' perf.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
   py:
     runs-on: ubuntu-latest
     defaults:

@@ -56,7 +56,7 @@ A re-score that disagrees with the reported label catches a lazily forged verdic
 
 `pnpm size` (size-limit, gzip) on the M1 build: `agentlens.mjs` 9.96 kB, `agentlens.iife.js` 9.98 kB, `scorer.mjs` 3.93 kB, against caps of 10 kB, 10 kB and 4.5 kB.
 
-`pnpm --filter @agentlens/runners-ts perf` loads the fixture in headless Chromium at 4× CPU throttle, drives a 60 s mouse, keyboard and wheel session three times, and reports init time and main-thread time from a Chrome trace (median of the runs). A no-op control listener on the same events runs ahead of the library, so the report splits the browser's per-event floor (creating each event's JS wrapper, which any listener pays) from the library's own time. The #17 WebGL probe costs several milliseconds, so it runs only once the behavioural rules reach an agent label, since only the class-B profile reads it.
+`pnpm --filter @agentlens/runners-ts perf` loads the fixture in headless Chromium at 4× CPU throttle, drives a 60 s mouse, keyboard and wheel session three times, and reports init time and main-thread time from a Chrome trace (median of the runs). A no-op control listener on the same events runs ahead of the library, so the report splits the browser's per-event floor (creating each event's JS wrapper, which any listener pays) from the library's own time. CI runs it as a non-blocking `perf` job and writes the numbers to the job summary. The #17 WebGL probe costs several milliseconds, so it runs only once the behavioural rules reach an agent label, since only the class-B profile reads it.
 
 ## Develop
 
