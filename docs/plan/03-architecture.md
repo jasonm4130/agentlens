@@ -327,7 +327,7 @@ Every labelled harness run's final `features` is saved to `fixtures/golden/<run>
 2. Tier 1 rules: zero human hits across all harness humans.
 3. Recall at agent-likely-or-unattributed: ≥12/15 on stock Playwright headless, headful, and Browser Use; ≥8/10 on Claude in Chrome (marker-driven; restated as behavioural recall if the M0 persistence check fails).
 4. The minimal baseline's recall is at or below ours on A and C at equal human flags.
-5. B, Patchright and ghost-cursor recall are **reported, not gated**, and published as known gaps.
+5. B, Patchright and ghost-cursor recall are **reported, not gated**, and published as known gaps. For v0.1.0 the computer-use-demo (B) runs are **deferred**, neither passed nor failed: OpenRouter, the key approved for these runs, rejects the Anthropic computer-use tool, and the Claude in Chrome runs cover Claude-driven browsing.
 6. Bundle within the M1 size cap (size-limit output quoted); perf trace within the §4.4 budgets; `Features` schema privacy test green; golden suite green; SSR import test green; axe clean on the fixture page.
 
 ---

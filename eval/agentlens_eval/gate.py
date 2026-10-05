@@ -18,6 +18,7 @@ from .stats import Rate, rule_of_three
 PASS, FAIL = "PASS", "FAIL"
 NOT_EVALUATED, INCOMPLETE = "NOT EVALUATED", "INCOMPLETE"
 REPORTED, NOT_RUN = "REPORTED", "NOT RUN"
+DEFERRED = "DEFERRED"
 
 # Check 3: (generator, required hits, required runs). Claude in Chrome is marker-driven; if the
 # M0 persistence check fails it is restated as behavioural recall.
@@ -29,6 +30,13 @@ RECALL_GATES = (
 )
 # Check 5: reported, not gated, and published as known gaps.
 REPORTED_GENERATORS = ("computer-use-demo", "patchright", "ghost-cursor", "ghost-cursor-patchright")
+# Generators dropped from the current release gate, with the reason: neither passed nor failed.
+DEFERRED_GENERATORS = {
+    "computer-use-demo": (
+        "dropped from the v0.1.0 gate because OpenRouter rejects the Anthropic computer-use "
+        "tool; the Claude in Chrome runs in the human-testing task cover Claude-driven browsing"
+    ),
+}
 
 # Check 6: commands run from the repository root; each passes on exit status 0.
 CORE = ["pnpm", "--filter", "@agentlens/core"]
@@ -205,9 +213,12 @@ def check_reported(runs: pl.DataFrame) -> Check:
         n = len(sub)
         k = int(sub["flagged"].sum()) if n else 0
         kc = int(sub["certain"].sum()) if n else 0
-        c.detail.append(
-            f"- {gen}: flagged {Rate(k, n)}; certain {Rate(kc, n)}" if n else f"- {gen}: no runs"
-        )
+        if n:
+            c.detail.append(f"- {gen}: flagged {Rate(k, n)}; certain {Rate(kc, n)}")
+        elif gen in DEFERRED_GENERATORS:
+            c.detail.append(f"- {gen}: {DEFERRED}, {DEFERRED_GENERATORS[gen]}")
+        else:
+            c.detail.append(f"- {gen}: no runs")
     return c
 
 

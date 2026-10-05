@@ -24,19 +24,19 @@ Generators: `playwright-headless`, `playwright-headful`, `patchright`, `browser-
 
 ## The matrix (architecture 7.2)
 
-| Class | Generator                          | Runs   | Needs                                    | How                                                                                                |
-| ----- | ---------------------------------- | ------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| A     | Playwright headless                | 15     | nothing                                  | `pnpm --filter @agentlens/runners-ts matrix --generator=playwright-headless --runs=15 --baselines` |
-| A     | Playwright headful                 | 15     | a display (Xvfb on Linux)                | `... matrix --generator=playwright-headful --runs=15 --baselines`                                  |
-| A     | Patchright headful                 | 15     | a display                                | `... matrix --generator=patchright --runs=15 --baselines`                                          |
-| A     | Playwright + ghost-cursor          | 10     | a display                                | `... matrix --generator=ghost-cursor --runs=10 --baselines`                                        |
-| A     | Patchright + ghost-cursor (extra)  | 10     | a display                                | `... matrix --generator=ghost-cursor-patchright --runs=10 --baselines`                             |
-| A     | Browser Use, stock (highlights on) | 15     | an LLM key                               | [Browser Use](#browser-use)                                                                        |
-| B     | computer-use-demo (Docker, Xvfb)   | 10     | `ANTHROPIC_API_KEY`, Docker, an operator | [computer-use-demo](#computer-use-demo)                                                            |
-| C     | Claude in Chrome, hands-off        | 10     | an operator with Claude in Chrome        | [Claude in Chrome](#claude-in-chrome-and-other-class-c-agents)                                     |
-| C     | Atlas, Comet, Gemini in Chrome     | 5 each | access to each product                   | same as Claude in Chrome                                                                           |
+| Class | Generator                                             | Runs   | Needs                                    | How                                                                                                |
+| ----- | ----------------------------------------------------- | ------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| A     | Playwright headless                                   | 15     | nothing                                  | `pnpm --filter @agentlens/runners-ts matrix --generator=playwright-headless --runs=15 --baselines` |
+| A     | Playwright headful                                    | 15     | a display (Xvfb on Linux)                | `... matrix --generator=playwright-headful --runs=15 --baselines`                                  |
+| A     | Patchright headful                                    | 15     | a display                                | `... matrix --generator=patchright --runs=15 --baselines`                                          |
+| A     | Playwright + ghost-cursor                             | 10     | a display                                | `... matrix --generator=ghost-cursor --runs=10 --baselines`                                        |
+| A     | Patchright + ghost-cursor (extra)                     | 10     | a display                                | `... matrix --generator=ghost-cursor-patchright --runs=10 --baselines`                             |
+| A     | Browser Use, stock (highlights on)                    | 15     | an LLM key                               | [Browser Use](#browser-use)                                                                        |
+| B     | computer-use-demo (Docker, Xvfb), deferred for v0.1.0 | 10     | `ANTHROPIC_API_KEY`, Docker, an operator | [computer-use-demo](#computer-use-demo)                                                            |
+| C     | Claude in Chrome, hands-off                           | 10     | an operator with Claude in Chrome        | [Claude in Chrome](#claude-in-chrome-and-other-class-c-agents)                                     |
+| C     | Atlas, Comet, Gemini in Chrome                        | 5 each | access to each product                   | same as Claude in Chrome                                                                           |
 
-Keys come only from 1Password through the committed `.env.op`: `op run --env-file .env.op -- <command>`. Confirm the vault and item with `op item list` before the first live run.
+Anthropic keys come only from 1Password through the committed `.env.op`: `op run --env-file .env.op -- <command>`. Confirm the vault and item with `op item list` before the first live run. Browser Use can instead go through OpenRouter (below); its key lives only in the environment of the runner process, never in the repo or a log.
 
 ### Browser Use
 
@@ -47,7 +47,18 @@ op run --env-file ../../.env.op -- uv run --with browser-use==0.13.10 \
   agentlens-runner browser-use --runs 15     # --model defaults to claude-opus-5-5
 ```
 
-Browser Use is not in the runner's lockfile (it pins a large dependency tree); `--with` adds it for the run. It launches its own Chromium (`uvx browser-use install` if it asks). Each run writes its label, then gives the agent the task with the fixture URL.
+Browser Use is not in the runner's lockfile (it pins a large dependency tree); `--with` adds it for the run. It launches its own Chromium (`uvx browser-use install` if it asks), headless when it finds no screen; under Xvfb set `BROWSER_USE_HEADLESS=false` so it runs headful as on a desktop. Each run writes its label, then gives the agent the task with the fixture URL.
+
+With browser-use 0.13.10, `claude-opus-5-5` declines Browser Use's agent prompt (`stop_reason` `refusal`, category `reasoning_extraction`), so pass another model, such as `--model claude-sonnet-5`. The 2026-10-05 runs went through OpenRouter on Claude Sonnet 5:
+
+```sh
+cd harness/runners-py
+# OPENROUTER_API_KEY set in this process only
+uv run --with browser-use==0.13.10 agentlens-runner browser-use --provider openrouter \
+  --runs 15 --budget 15    # --model defaults to anthropic/claude-sonnet-5 on OpenRouter
+```
+
+`--provider openrouter` talks to OpenRouter's Anthropic-compatible endpoint and prints each run's OpenRouter cost; `--budget` (USD) stops the series between runs once it is spent, and `--start` resumes a numbered series.
 
 ### computer-use-demo
 
@@ -57,6 +68,8 @@ For each of 10 runs (`cud-01` ... `cud-10`):
 cd harness/runners-py
 op run --env-file ../../.env.op -- uv run agentlens-runner run --run-id cud-01
 ```
+
+The v0.1.0 release gate defers these runs (the gate report says DEFERRED: neither passed nor failed). They need a direct Anthropic key: on 2026-10-05 OpenRouter's Anthropic-compatible endpoint rejected every computer-use tool version (`computer_toolset_20260801`, `computer_20251124`, `computer_20250124`) with a 400, while the same request without the tool went through.
 
 It writes the class B label and prints the Docker command and the prompt to paste into the demo UI at `http://localhost:8501`. The demo's browser reaches the recorder at `host.docker.internal:8787`. Leave the agent alone until it clicks Confirm, then close the browser tab so the page flushes its verdict. M0's open check also applies: note which browser and WebGL renderer bucket the container reports (`features.probes.renderer` in the JSONL).
 
