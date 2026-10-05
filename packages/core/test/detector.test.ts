@@ -55,6 +55,16 @@ describe("verdict semantics", () => {
     b.destroy();
   });
 
+  it("destroy saves features folded since the last save, so a remount keeps them", () => {
+    const env = fakeEnv();
+    const a = createDetectorWith(env);
+    for (let i = 0; i < 3; i++) env.fire(ev({ type: "keydown", timeStamp: i * 100, key: "a" }));
+    a.destroy();
+    const b = createDetectorWith(env);
+    expect(b.snapshot().features.counts.keys).toBe(3);
+    b.destroy();
+  });
+
   it("emits label-change after the debounce when the label changes, never for quiet labels", () => {
     const env = fakeEnv();
     const d = createDetectorWith(env);

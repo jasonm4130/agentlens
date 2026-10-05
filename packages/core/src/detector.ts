@@ -87,20 +87,17 @@ export function createDetectorWith(
    * the class-B profile reads it, so it is probed the first time Tier 2 reaches an agent
    * label and the session is re-scored; most human sessions never pay for it.
    */
+  const scoreOpts = { mode, gpc, minActions };
   const run = (): Scored => {
-    const s = score(features, RULESET, { mode, gpc, minActions });
+    const s = score(features, RULESET, scoreOpts);
     if (glProbed || s.tells.length > 0 || !s.label.startsWith("agent")) return s;
     glProbed = true;
     runProbes(env, [rendererProbe], features.probes);
-    return score(features, RULESET, { mode, gpc, minActions });
+    return score(features, RULESET, scoreOpts);
   };
 
-  const build = (s: Scored, reason: Verdict["reason"]): Verdict => ({
-    label: s.label,
-    ...(s.agentClass ? { agentClass: s.agentClass } : {}),
-    confidence: s.confidence,
-    evidence: s.evidence,
-    cohort: s.cohort,
+  const build = ({ actions: _a, tells: _t, ...s }: Scored, reason: Verdict["reason"]): Verdict => ({
+    ...s,
     mode,
     features: clone(features),
     featuresVersion: FEATURES_VERSION,
@@ -206,6 +203,7 @@ export function createDetectorWith(
       if (initTimer !== undefined) env.clearTimeout(initTimer);
       emitter.clear();
       if (opts?.clear) clearState(env);
+      else saveState(env, state, storage);
       onDestroy();
     },
   };

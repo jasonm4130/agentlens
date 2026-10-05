@@ -329,6 +329,17 @@ describe("#10 scroll", () => {
     expect(f.counts).toMatchObject({ wheelSameDelta: 1, wheelFractional: 1, wheelSmall: 1 });
   });
 
+  it("ignores element scrolls: no count, no action and no effect on the document stream", () => {
+    const f = emptyFeatures();
+    const tr = emptyTransient();
+    const box = ev({ type: "scroll", timeStamp: 2000, target: el() });
+    const { actions } = fold(scroll, f, tr, box, { ...box, timeStamp: 8000 });
+    expect(actions).toEqual([]);
+    expect(f.counts.noInputScrolls).toBe(0);
+    fold(scroll, f, tr, ev({ type: "scroll", timeStamp: 8050 }));
+    expect(f.counts.noInputScrolls).toBe(1);
+  });
+
   it("counts a scroll burst with no recent input once, and not after wheel or find input", () => {
     const f = emptyFeatures();
     const tr = emptyTransient();

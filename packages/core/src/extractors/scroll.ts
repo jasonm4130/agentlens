@@ -35,7 +35,8 @@ function noInputScroll(f: Features, tr: Transient, t: number): boolean {
  * #10. Folds wheel ticks (delta bucket, inter-tick dt, repeated identical deltas, trackpad
  * hints) and counts scroll bursts with no wheel, touch, key or pointer input in the previous
  * 500 ms and no mouse button held (scrollbar drag, middle-button autoscroll), plus clicks
- * that land within a second of such a burst. hashchange and focus-driven scrolls abstain.
+ * that land within a second of such a burst. hashchange and focus-driven scrolls abstain, and
+ * only document scrolls count: element scrolls (carousels, chat logs) are ignored.
  */
 export const scroll: Extractor = {
   events: ["wheel", "scroll", "click", "hashchange", "focusin"],
@@ -76,6 +77,7 @@ export const scroll: Extractor = {
         return;
       }
       case "scroll": {
+        if (e.target?.closest) return;
         const none = noInputScroll(f, tr, t);
         tr.lastScrollAt = t;
         tr.scrollNoInput = none;

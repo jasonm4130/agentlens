@@ -428,6 +428,46 @@ describe("accessibility counterexamples: must abstain or stay human-like", () =>
     expectSafe(s.label);
   });
 
+  it("trackpad tap-to-click after a pause: a path, then >300 ms still, a 1 ms tap, no wheel", () => {
+    const events: Ev[] = [];
+    for (let i = 0; i < 6; i++) {
+      const t = 2000 + i * 2500;
+      const x = 200 + i * 90;
+      for (let k = 1; k <= 15; k++)
+        events.push(
+          ev({
+            type: "pointermove",
+            timeStamp: t - 400 - (15 - k) * 16,
+            pointerType: "mouse",
+            clientX: Math.round(100 + (x - 100) * (k / 15)),
+            clientY: Math.round(500 - 200 * (k / 15)),
+            buttons: 0,
+          }),
+        );
+      events.push(
+        ...mouseClick(t, x, 300, {
+          moves: 0,
+          dwell: 1,
+          target: el({ rect: [150 + i * 90, 280, 160, 50] }),
+        }),
+      );
+    }
+    const s = session(events).score();
+    expect(s.evidence.map((e) => e.rule)).toEqual(expect.arrayContaining(["R1", "R2"]));
+    expect(s.label).not.toBe("agent-unattributed");
+    expectSafe(s.label);
+  });
+
+  it("an idle reader beside an auto-advancing carousel: element scrolls are not actions", () => {
+    const carousel = el();
+    const ticks = Array.from({ length: 12 }, (_, i) =>
+      ev({ type: "scroll", timeStamp: 5000 * (i + 1), target: carousel }),
+    );
+    const s = session(ticks).score();
+    expect(s.actions).toBe(0);
+    expect(s.label).toBe("insufficient-data");
+  });
+
   it("keyboard-only session: Tab, arrows, typing and keyboard scrolling", () => {
     const r = jitter(17);
     const events: Ev[] = [];

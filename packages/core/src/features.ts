@@ -183,23 +183,23 @@ function keysOf<T extends object>(o: T): (keyof T)[] {
   return Object.keys(o) as (keyof T)[];
 }
 
+function fill<K extends PropertyKey, V>(keys: readonly K[], v: V): Record<K, V> {
+  const o = {} as Record<K, V>;
+  for (const k of keys) o[k] = v;
+  return o;
+}
+
 export function emptyProbes(): Probes {
-  const p = {} as Probes;
-  for (const k of keysOf(PROBE_BOUNDS)) p[k] = null;
-  return p;
+  return fill(keysOf(PROBE_BOUNDS), null);
 }
 
 export function emptyFeatures(): Features {
-  const counts = {} as Counts;
-  for (const k of COUNT_KEYS) counts[k] = 0;
-  const hist = {} as Histograms;
-  for (const k of keysOf(HIST_EDGES)) hist[k] = null;
   return {
-    counts,
-    hist,
-    moments: { interKey: null, wheelDt: null, actionGap: null },
+    counts: fill(COUNT_KEYS, 0),
+    hist: fill(keysOf(HIST_EDGES), null),
+    moments: fill(keysOf(MOMENT_CLAMP), null),
     probes: emptyProbes(),
-    markers: { claude: false, browserUse: false, custom: false },
+    markers: fill(MARKER_KEYS, false),
   };
 }
 
@@ -302,10 +302,13 @@ export function validateFeatures(input: unknown, version: number = FEATURES_VERS
     const m = moments[k];
     if (m === null) continue;
     const c = MOMENT_CLAMP[k];
-    if (!exactKeys(m, ["n", "sum", "sumSq"])) return fail(`moments.${k}`);
-    if (!isInt(m.n, 0, COUNT_MAX)) return fail(`moments.${k}`);
-    const n = m.n as number;
-    if (!isInt(m.sum, 0, n * c) || !isInt(m.sumSq, 0, n * c * c)) return fail(`moments.${k}`);
+    if (
+      !exactKeys(m, ["n", "sum", "sumSq"]) ||
+      !isInt(m.n, 0, COUNT_MAX) ||
+      !isInt(m.sum, 0, (m.n as number) * c) ||
+      !isInt(m.sumSq, 0, (m.n as number) * c * c)
+    )
+      return fail(`moments.${k}`);
   }
   const probeKeys = keysOf(PROBE_BOUNDS);
   if (!exactKeys(probes, probeKeys)) return fail("bad probes");

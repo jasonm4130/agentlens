@@ -117,7 +117,7 @@ export function score(
     fired.add(rule.id);
     evidence.push({ rule: rule.id, detail: r });
     if (rule.corroborator) corroborating++;
-    else qualifying++;
+    else if (!fired.has(rule.overlaps ?? "")) qualifying++;
   }
 
   if (qualifying >= 2) {

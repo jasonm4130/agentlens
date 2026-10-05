@@ -52,6 +52,8 @@ export interface Rule {
   agentClass?: AgentClass;
   /** Raises confidence but never counts toward the two Tier 2 rules (R8). */
   corroborator?: boolean;
+  /** Shares a predicate with this earlier rule: when both fire they count as one. */
+  overlaps?: string;
   check(ctx: RuleContext): RuleResult;
 }
 
@@ -156,6 +158,7 @@ export const RULES: readonly Rule[] = [
   {
     id: "R2", // signal #2 in 01-signals
     tier: 2,
+    overlaps: "R1",
     check: (ctx) => {
       const c = ctx.f.counts;
       return gated(mouseClicksGate(ctx) && !trackpadHint(ctx.f), () =>

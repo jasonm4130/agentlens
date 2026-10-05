@@ -46,7 +46,7 @@ export function attachCollector(
   const ignored = new WeakMap<object, boolean>();
   const isIgnored = (e: Ev): boolean => {
     const t = e.target;
-    if (!t || typeof t.closest !== "function") return false;
+    if (typeof t?.closest !== "function") return false;
     let hit = ignored.get(t);
     if (hit === undefined) ignored.set(t, (hit = t.closest(selector) !== null));
     return hit;
